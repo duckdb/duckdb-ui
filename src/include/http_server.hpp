@@ -40,7 +40,8 @@ private:
   friend class Watcher;
 
   // Lifecycle
-  void DoStart(const uint16_t local_port, const std::string &remote_url);
+  void DoStart(const uint16_t local_port, const std::string &local_host,
+               const std::string &remote_url);
   void DoStop();
   void Run();
   void UpdateDatabaseInstance(shared_ptr<DatabaseInstance> context_db);
@@ -69,6 +70,7 @@ private:
   shared_ptr<DatabaseInstance> LockDatabaseInstance();
 
   uint16_t local_port;
+  std::string local_host;
   std::string local_url;
   std::string remote_url;
   weak_ptr<DatabaseInstance> ddb_instance;
