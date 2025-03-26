@@ -8,6 +8,10 @@ set(TARGET_NAME ui)
 # remove or replace with other dependencies. Note that it should also be removed
 # from vcpkg.json to prevent needlessly installing it..
 find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
+
+# mingw only?
+set(OPENSSL_USE_STATIC_LIBS TRUE)
 
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 
@@ -53,7 +57,8 @@ add_definitions(-DUI_EXTENSION_GIT_SHA="${UI_EXTENSION_GIT_SHA}")
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
 
-target_link_libraries(${EXTENSION_NAME} OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(ui_loadable_extension ${OPENSSL_LIBRARIES})
+target_link_libraries(ui_extension ${OPENSSL_LIBRARIES})
 
 install(
   TARGETS ${EXTENSION_NAME}
