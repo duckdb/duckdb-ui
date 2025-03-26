@@ -32,7 +32,7 @@ jobs:
 
   duckdb-stable-build:
     name: Build stable extension binaries
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.2.1
+    uses: ./.github/workflows/_extension_distribution.yml
     with:
       ci_tools_version: v1.2.1
       duckdb_version: v1.2.1
