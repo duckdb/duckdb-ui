@@ -54,7 +54,7 @@ build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
 
 target_link_libraries(ui_loadable_extension ${OPENSSL_LIBRARIES})
-target_link_libraries(ui_extension ${OPENSSL_LIBRARIES})
+target_link_libraries(${EXTENSION_NAME} ${OPENSSL_LIBRARIES})
 
 install(
   TARGETS ${EXTENSION_NAME}
