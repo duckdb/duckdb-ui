@@ -8,10 +8,6 @@ set(TARGET_NAME ui)
 # remove or replace with other dependencies. Note that it should also be removed
 # from vcpkg.json to prevent needlessly installing it..
 find_package(OpenSSL REQUIRED)
-include_directories(${OPENSSL_INCLUDE_DIR})
-
-# mingw only?
-set(OPENSSL_USE_STATIC_LIBS TRUE)
 
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 
