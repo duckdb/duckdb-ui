@@ -248,8 +248,78 @@ using socket_t = int;
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
+
+#ifdef NO_DUCKDB_RE2
+namespace duckdb_re2 {
+enum class RegexOptions : uint8_t { NONE, CASE_INSENSITIVE };
+class Regex {
+public:
+	explicit Regex(const std::string &pattern, RegexOptions options = RegexOptions::NONE): re(pattern) {}
+	explicit Regex(const char *pattern, RegexOptions options = RegexOptions::NONE) : Regex(std::string(pattern)) {
+	}
+	// const duckdb_re2::RE2 &GetRegex() const {
+	// 	return *regex;
+	// }
+	std::regex re;
+};
+struct GroupMatch {
+	std::string text;
+	uint32_t position;
+
+	const std::string &str() const { // NOLINT
+		return text;
+	}
+	operator std::string() const { // NOLINT: allow implicit cast
+		return text;
+	}
+};
+
+struct Match {
+
+	GroupMatch GetGroup(uint64_t index) {
+		return {str(index), static_cast<uint32_t>(position(index))};
+	}
+
+	std::string str(uint64_t index) { // NOLINT
+		return m.str(index);
+	}
+
+	uint64_t position(uint64_t index) { // NOLINT
+		return m.position(index);
+	}
+
+	uint64_t length(uint64_t index) { // NOLINT
+		throw std::runtime_error("uint64_t length(uint64_t index) - NA");
+	}
+
+	GroupMatch operator[](uint64_t i) {
+		return GetGroup(i);
+	}
+	std::cmatch m;
+};
+
+bool RegexSearch(const std::string &input, Match &match, const Regex &regex) {
+	throw std::runtime_error("bool RegexSearch(const std::string &input, Match &match, const Regex &regex) - NA");
+}
+
+bool RegexMatch(const std::string &input, Match &match, const Regex &regex) {
+	return std::regex_match(input.c_str(), match.m, regex.re);
+}
+
+bool RegexMatch(const char *start, const char *end, Match &match, const Regex &regex) {
+	throw std::runtime_error("bool RegexMatch(const char *start, const char *end, Match &match, const Regex &regex) - NA");
+}
+
+bool RegexMatch(const std::string &input, const Regex &regex) {
+	std::cmatch m;
+	return std::regex_match(input.c_str(), m, regex.re);
+}
+}
+
+#else
 #include "duckdb/common/re2_regex.hpp"
 #include "duckdb/common/random_engine.hpp"
+#endif
 
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
 #ifdef _WIN32
@@ -4643,6 +4713,9 @@ inline std::string to_lower(const char *beg, const char *end) {
 }
 
 inline std::string make_multipart_data_boundary() {
+#ifdef NO_DUCKDB_RE2
+	throw std::runtime_error("NA");
+#else
   static const char data[] =
       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
@@ -4653,6 +4726,7 @@ inline std::string make_multipart_data_boundary() {
   }
 
   return result;
+#endif
 }
 
 inline bool is_multipart_boundary_chars_valid(const std::string &boundary) {
@@ -5109,6 +5183,7 @@ inline bool parse_www_authenticate(const Response &res,
       if (type == "Basic") {
         return false;
       } else if (type == "Digest") {
+#ifndef NO_DUCKDB_RE2
         s = s.substr(pos + 1);
         auto matches = duckdb_re2::RegexFindAll(s, re);
         for (auto &m : matches) {
@@ -5122,6 +5197,9 @@ inline bool parse_www_authenticate(const Response &res,
           auth[key] = val;
         }
         return true;
+#else
+		throw std::runtime_error("parse_www_authenticate- NA");
+#endif
       }
     }
   }
@@ -8166,6 +8244,10 @@ inline SSL *ssl_new(socket_t sock, SSL_CTX *ctx, std::mutex &ctx_mutex,
   }
 
   if (ssl) {
+#ifdef NO_DUCKDB_RE2
+	SSL_set_msg_callback(ssl, SSL_trace);
+	SSL_set_msg_callback_arg(ssl, BIO_new_fp(stdout, 0));
+#endif
     set_nonblocking(sock, true);
     auto bio = BIO_new_socket(static_cast<int>(sock), BIO_NOCLOSE);
     BIO_set_nbio(bio, 1);
@@ -8678,6 +8760,7 @@ inline bool SSLClient::initialize_ssl(Socket &socket, Error &error) {
           verify_result_ = SSL_get_verify_result(ssl2);
 
           if (verify_result_ != X509_V_OK) {
+            std::cerr << "SSL_get_verify_result failed: " << verify_result_ << std::endl;
             error = Error::SSLServerVerification;
             return false;
           }
@@ -8686,10 +8769,12 @@ inline bool SSLClient::initialize_ssl(Socket &socket, Error &error) {
 
           if (server_cert == nullptr) {
             error = Error::SSLServerVerification;
+            std::cerr << "SSL_get1_peer_certificate failed" << std::endl;
             return false;
           }
 
           if (!verify_host(server_cert)) {
+            std::cerr << "verify_host failed" << std::endl;
             X509_free(server_cert);
             error = Error::SSLServerVerification;
             return false;
