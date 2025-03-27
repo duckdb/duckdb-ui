@@ -8760,6 +8760,7 @@ inline bool SSLClient::initialize_ssl(Socket &socket, Error &error) {
           verify_result_ = SSL_get_verify_result(ssl2);
 
           if (verify_result_ != X509_V_OK) {
+            std::cerr << "SSL_get_verify_result failed: " << verify_result_ << std::endl;
             error = Error::SSLServerVerification;
             return false;
           }
@@ -8768,10 +8769,12 @@ inline bool SSLClient::initialize_ssl(Socket &socket, Error &error) {
 
           if (server_cert == nullptr) {
             error = Error::SSLServerVerification;
+            std::cerr << "SSL_get1_peer_certificate failed" << std::endl;
             return false;
           }
 
           if (!verify_host(server_cert)) {
+            std::cerr << "verify_host failed" << std::endl;
             X509_free(server_cert);
             error = Error::SSLServerVerification;
             return false;
