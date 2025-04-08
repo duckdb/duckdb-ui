@@ -103,6 +103,14 @@ static void LoadInternal(DatabaseInstance &instance) {
   }
 
   {
+    auto default_host = GetEnvOrDefault(UI_LOCAL_HOST_SETTING_NAME,
+                                        UI_LOCAL_HOST_SETTING_DEFAULT);
+    config.AddExtensionOption(UI_LOCAL_HOST_SETTING_NAME,
+                              "Local host on which the UI server listens",
+                              LogicalType::VARCHAR, Value(default_host));
+  }
+
+  {
     auto def = GetEnvOrDefault(UI_REMOTE_URL_SETTING_NAME,
                                UI_REMOTE_URL_SETTING_DEFAULT);
     config.AddExtensionOption(
