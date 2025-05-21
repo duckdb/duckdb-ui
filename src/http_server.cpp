@@ -64,7 +64,8 @@ bool HttpServer::IsRunningOnMachine(ClientContext &context) {
   }
 
   const auto local_port = GetLocalPort(context);
-  auto local_url = StringUtil::Format("http://localhost:%d", local_port);
+  const auto local_host = GetLocalHost(context);
+  auto local_url = StringUtil::Format("http://%s:%d", local_host, local_port);
 
   httplib::Client client(local_url);
   return client.Get("/info");
@@ -94,19 +95,22 @@ const HttpServer &HttpServer::Start(ClientContext &context, bool *was_started) {
 
   const auto remote_url = GetRemoteUrl(context);
   const auto port = GetLocalPort(context);
+  const auto host = GetLocalHost(context);
   auto server = GetInstance(context);
-  server->DoStart(port, remote_url);
+  server->DoStart(port, host, remote_url);
   return *server;
 }
 
 void HttpServer::DoStart(const uint16_t _local_port,
+                         const std::string &_local_host,
                          const std::string &_remote_url) {
   if (Started()) {
     throw std::runtime_error("HttpServer already started");
   }
 
   local_port = _local_port;
-  local_url = StringUtil::Format("http://localhost:%d", local_port);
+  local_host = _local_host;
+  local_url = StringUtil::Format("http://%s:%d", local_host, local_port);
   remote_url = _remote_url;
   user_agent =
       StringUtil::Format("duckdb-ui/%s-%s(%s)", DuckDB::LibraryVersion(),
@@ -146,10 +150,11 @@ void HttpServer::DoStop() {
   ddb_instance.reset();
   remote_url = "";
   local_port = 0;
+  local_host = "";
 }
 
 std::string HttpServer::LocalUrl() const {
-  return StringUtil::Format("http://localhost:%d/", local_port);
+  return StringUtil::Format("http://%s:%d/", local_host, local_port);
 }
 
 shared_ptr<DatabaseInstance> HttpServer::LockDatabaseInstance() {
@@ -185,7 +190,7 @@ void HttpServer::Run() {
                   const httplib::ContentReader &content_reader) {
                 HandleTokenize(req, res, content_reader);
               });
-  server.listen("localhost", local_port);
+  server.listen(local_host, local_port);
 }
 
 void HttpServer::HandleGetInfo(const httplib::Request &req,
