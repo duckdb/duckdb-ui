@@ -35,19 +35,19 @@ jobs:
 
   duckdb-next-patch-build:
     name: Build next patch extension binaries
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.3.0
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.3.1
     with:
-      ci_tools_version: v1.3.0
+      ci_tools_version: v1.3.1
       duckdb_version: v1.3-ossivalis
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
   duckdb-stable-build:
     name: Build stable extension binaries
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.3.0
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.3.1
     with:
-      ci_tools_version: v1.3.0
-      duckdb_version: v1.3.0
+      ci_tools_version: v1.3.1
+      duckdb_version: v1.3.1
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
@@ -55,11 +55,11 @@ jobs:
     if: ${{ github.repository == 'duckdb/duckdb-ui' && ( startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ) }}
     name: Deploy stable extension binaries
     needs: duckdb-stable-build
-    uses: duckdb/extension-ci-tools/.github/workflows/_extension_deploy.yml@v1.3.0
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_deploy.yml@v1.3.1
     secrets: inherit
     with:
       extension_name: ui
-      ci_tools_version: v1.3.0
-      duckdb_version: v1.3.0
+      ci_tools_version: v1.3.1
+      duckdb_version: v1.3.1
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads'
       deploy_latest: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
