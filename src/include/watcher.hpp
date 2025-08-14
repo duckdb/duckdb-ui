@@ -26,6 +26,7 @@ private:
   std::condition_variable cv;
   std::atomic<bool> should_run;
   HttpServer &server;
+  DatabaseInstance *watched_database;
 };
 } // namespace ui
 } // namespace duckdb
