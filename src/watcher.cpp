@@ -62,11 +62,11 @@ void Watcher::Watch() {
       break; // DB went away, nothing to watch
     }
 
-	if (watched_database == nullptr) {
-	  watched_database = db.get();
-	} else if (watched_database != db.get()) {
-	  break; // DB changed, stop watching, will be restarted
-	}
+    if (watched_database == nullptr) {
+      watched_database = db.get();
+    } else if (watched_database != db.get()) {
+      break; // DB changed, stop watching, will be restarted
+    }
 
     duckdb::Connection con{*db};
     auto polling_interval = GetPollingInterval(*con.context);

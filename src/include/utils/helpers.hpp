@@ -11,7 +11,7 @@ namespace duckdb {
 typedef std::string (*simple_tf_t)(ClientContext &);
 
 struct RunOnceTableFunctionState : GlobalTableFunctionState {
-  RunOnceTableFunctionState() : run(false) {};
+  RunOnceTableFunctionState() : run(false){};
   std::atomic<bool> run;
 
   static unique_ptr<GlobalTableFunctionState> Init(ClientContext &,
