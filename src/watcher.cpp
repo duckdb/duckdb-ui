@@ -9,7 +9,8 @@
 namespace duckdb {
 namespace ui {
 
-Watcher::Watcher(HttpServer &_server) : should_run(false), server(_server) {}
+Watcher::Watcher(HttpServer &_server)
+    : should_run(false), server(_server), watched_database(nullptr) {}
 
 bool WasCatalogUpdated(DatabaseInstance &db, Connection &connection,
                        CatalogState &last_state) {
