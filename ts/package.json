@@ -7,7 +7,7 @@
     "test": "pnpm -r test"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   },
   "pnpm": {
     "overrides": {
