@@ -14,15 +14,12 @@ export class DuckDBTimestampTZValue extends SpecialDuckDBValue {
   public toDuckDBString(toStringOptions?: DuckDBToStringOptions): string {
     return getDuckDBTimestampStringFromMicroseconds(
       this.microseconds,
-      toStringOptions?.timezoneOffsetInMinutes || 0,
+      toStringOptions?.timeZone || 'UTC',
     );
   }
 
-  public toSql(): string {
-    return `TIMESTAMPTZ '${getDuckDBTimestampStringFromMicroseconds(
-      this.microseconds,
-      0,
-    )}'`;
+  public toSql(toStringOptions?: DuckDBToStringOptions): string {
+    return `TIMESTAMPTZ '${this.toDuckDBString(toStringOptions)}'`;
   }
 
   public toJson(): Json {

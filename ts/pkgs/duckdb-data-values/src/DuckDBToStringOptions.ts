@@ -1,3 +1,3 @@
 export interface DuckDBToStringOptions {
-  timezoneOffsetInMinutes?: number;
+  timeZone?: string;
 }

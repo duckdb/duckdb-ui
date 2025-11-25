@@ -47,20 +47,71 @@ export function getDuckDBDateStringFromDays(days: number): string {
   return getDuckDBDateStringFromYearMonthDay(year, month, dayOfMonth);
 }
 
-export function getTimezoneOffsetString(
-  timezoneOffsetInMinutes?: number,
+export function getTimeZoneOffsetString(
+  timeZoneOffsetInMinutes?: number,
 ): string | undefined {
-  if (timezoneOffsetInMinutes === undefined) {
+  if (timeZoneOffsetInMinutes === undefined) {
     return undefined;
   }
-  const negative = timezoneOffsetInMinutes < 0;
-  const positiveMinutes = Math.abs(timezoneOffsetInMinutes);
+  const negative = timeZoneOffsetInMinutes < 0;
+  const positiveMinutes = Math.abs(timeZoneOffsetInMinutes);
   const minutesPart = positiveMinutes % 60;
   const hoursPart = Math.floor(positiveMinutes / 60);
   const minutesStr =
     minutesPart !== 0 ? String(minutesPart).padStart(2, '0') : '';
   const hoursStr = String(hoursPart).padStart(2, '0');
   return `${negative ? '-' : '+'}${hoursStr}${minutesStr ? `:${minutesStr}` : ''}`;
+}
+
+const formatterCache: { [timeZone: string]: Intl.DateTimeFormat | undefined } =
+  {};
+
+export function getFormatterForTimeZone(timeZone: string): Intl.DateTimeFormat {
+  let formatter = formatterCache[timeZone];
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat([], {
+      timeZone,
+      timeZoneName: 'longOffset', // e.g. GMT+12:34
+    });
+    formatterCache[timeZone] = formatter;
+  }
+  return formatter;
+}
+
+export function getTimeZoneName(
+  date: Date,
+  timeZone: string,
+): string | undefined {
+  const formatter = getFormatterForTimeZone(timeZone);
+  const parts = formatter.formatToParts(date);
+  let timeZoneName: string | undefined;
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const part = parts[i];
+    if (part.type === 'timeZoneName') {
+      timeZoneName = part.value;
+      break;
+    }
+  }
+  return timeZoneName;
+}
+
+export function getTimeZoneOffsetInMinutes(
+  microsecondsSinceEpoch: number,
+  timeZone: string,
+): number {
+  const date = new Date(microsecondsSinceEpoch);
+  const timeZoneName = getTimeZoneName(date, timeZone);
+  if (!timeZoneName) {
+    return 0;
+  }
+  const match = timeZoneName.match(/GMT(.)(\d\d):(\d\d)/);
+  if (!match) {
+    return 0;
+  }
+  const sign = match[1] === '+' ? 1 : -1;
+  const hours = parseInt(match[2], 10);
+  const minutes = parseInt(match[3], 10);
+  return sign * (hours * 60 + minutes);
 }
 
 export function getAbsoluteOffsetStringFromParts(
@@ -161,18 +212,18 @@ export function getDuckDBTimeStringFromMicroseconds(
 export function getDuckDBTimestampStringFromDaysAndMicroseconds(
   days: bigint,
   microsecondsInDay: bigint,
-  timezonePart?: string,
+  timeZonePart?: string,
 ): string {
   // This conversion of BigInt to Number is safe, because the largest absolute value that `days` can has is 106751991,
   // which fits without loss of precision in a JS Number. (106751991 = (2^63-1) / MICROSECONDS_PER_DAY)
   const dateStr = getDuckDBDateStringFromDays(Number(days));
   const timeStr = getDuckDBTimeStringFromMicrosecondsInDay(microsecondsInDay);
-  return `${dateStr} ${timeStr}${timezonePart ?? ''}`;
+  return `${dateStr} ${timeStr}${timeZonePart ?? ''}`;
 }
 
 export function getDuckDBTimestampStringFromMicroseconds(
   microseconds: bigint,
-  timezoneOffsetInMinutes?: number,
+  timeZone?: string,
 ): string {
   // Note that -infinity and infinity are only representable in TIMESTAMP (and TIMESTAMPTZ), not the other timestamp
   // variants. This is by-design and matches DuckDB.
@@ -182,10 +233,16 @@ export function getDuckDBTimestampStringFromMicroseconds(
   if (microseconds === POSITIVE_INFINITY_TIMESTAMP) {
     return 'infinity';
   }
+  const timeZoneOffsetInMinutes = timeZone
+    ? getTimeZoneOffsetInMinutes(
+        Number(microseconds / MICROSECONDS_PER_MILLISECOND),
+        timeZone,
+      )
+    : undefined;
   const offsetMicroseconds =
-    timezoneOffsetInMinutes !== undefined
+    timeZoneOffsetInMinutes !== undefined
       ? microseconds +
-        BigInt(timezoneOffsetInMinutes) *
+        BigInt(timeZoneOffsetInMinutes) *
           MICROSECONDS_PER_SECOND *
           SECONDS_PER_MINUTE
       : microseconds;
@@ -198,7 +255,7 @@ export function getDuckDBTimestampStringFromMicroseconds(
   return getDuckDBTimestampStringFromDaysAndMicroseconds(
     days,
     microsecondsPart,
-    getTimezoneOffsetString(timezoneOffsetInMinutes),
+    getTimeZoneOffsetString(timeZoneOffsetInMinutes),
   );
 }
 
