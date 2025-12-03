@@ -81,7 +81,7 @@ export function readVector(
       break;
     case LogicalTypeId.BLOB:
     case LogicalTypeId.BIT:
-    case LogicalTypeId.VARINT:
+    case LogicalTypeId.BIGNUM:
       {
         const data = deserializer.readProperty(102, readDataList);
         vector = {

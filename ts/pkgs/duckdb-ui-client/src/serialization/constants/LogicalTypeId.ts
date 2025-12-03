@@ -29,7 +29,7 @@ export const LogicalTypeId = {
   TIMESTAMP_TZ: 32,
   TIME_TZ: 34,
   BIT: 36,
-  VARINT: 39,
+  BIGNUM: 39,
   UHUGEINT: 49,
   HUGEINT: 50,
   UUID: 54,

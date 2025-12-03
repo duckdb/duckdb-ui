@@ -17,7 +17,7 @@ import {
   DuckDBTimestampTZValue,
   DuckDBUUIDValue,
   DuckDBValue,
-  getVarIntFromBytes,
+  getBigNumFromBytes,
 } from '@duckdb/data-values';
 import { LogicalTypeId } from '../../serialization/constants/LogicalTypeId.js';
 import { TypeIdAndInfo } from '../../serialization/types/TypeInfo.js';
@@ -177,9 +177,9 @@ export function duckDBValueFromVector(
       );
     }
 
-    case LogicalTypeId.VARINT: {
+    case LogicalTypeId.BIGNUM: {
       const dv = getDataListVector(vector).data[rowIndex];
-      return getVarIntFromBytes(
+      return getBigNumFromBytes(
         new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength),
       );
     }

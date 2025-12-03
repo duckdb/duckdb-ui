@@ -2,6 +2,7 @@ import {
   ARRAY,
   DECIMAL,
   DuckDBBigIntType,
+  DuckDBBigNumType,
   DuckDBBitType,
   DuckDBBlobType,
   DuckDBBooleanType,
@@ -28,7 +29,6 @@ import {
   DuckDBUTinyIntType,
   DuckDBUUIDType,
   DuckDBVarCharType,
-  DuckDBVarIntType,
   ENUM,
   JSONType,
   LIST,
@@ -119,8 +119,8 @@ export function duckDBTypeFromTypeIdAndInfo(
     case LogicalTypeId.BIT:
       return DuckDBBitType.create(alias);
 
-    case LogicalTypeId.VARINT:
-      return DuckDBVarIntType.create(alias);
+    case LogicalTypeId.BIGNUM:
+      return DuckDBBigNumType.create(alias);
 
     case LogicalTypeId.UHUGEINT:
       return DuckDBUHugeIntType.create(alias);

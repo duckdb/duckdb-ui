@@ -890,26 +890,26 @@ export class DuckDBAnyType extends BaseDuckDBType<DuckDBTypeId.ANY> {
 }
 export const ANY = DuckDBAnyType.instance;
 
-export class DuckDBVarIntType extends BaseDuckDBType<DuckDBTypeId.VARINT> {
+export class DuckDBBigNumType extends BaseDuckDBType<DuckDBTypeId.BIGNUM> {
   public constructor(alias?: string) {
-    super(DuckDBTypeId.VARINT, alias);
+    super(DuckDBTypeId.BIGNUM, alias);
   }
-  public static readonly instance = new DuckDBVarIntType();
-  public static create(alias?: string): DuckDBVarIntType {
-    return alias ? new DuckDBVarIntType(alias) : DuckDBVarIntType.instance;
+  public static readonly instance = new DuckDBBigNumType();
+  public static create(alias?: string): DuckDBBigNumType {
+    return alias ? new DuckDBBigNumType(alias) : DuckDBBigNumType.instance;
   }
   public static readonly Max: bigint =
     179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368n;
   public static readonly Min: bigint =
     -179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368n;
   public get max() {
-    return DuckDBVarIntType.Max;
+    return DuckDBBigNumType.Max;
   }
   public get min() {
-    return DuckDBVarIntType.Min;
+    return DuckDBBigNumType.Min;
   }
 }
-export const VARINT = DuckDBVarIntType.instance;
+export const BIGNUM = DuckDBBigNumType.instance;
 
 export class DuckDBSQLNullType extends BaseDuckDBType<DuckDBTypeId.SQLNULL> {
   public constructor(alias?: string) {
@@ -983,7 +983,7 @@ export type DuckDBType =
   | DuckDBTimeTZType
   | DuckDBTimestampTZType
   | DuckDBAnyType
-  | DuckDBVarIntType
+  | DuckDBBigNumType
   | DuckDBSQLNullType
   | DuckDBStringLiteralType
   | DuckDBIntegerLiteralType;

@@ -1,6 +1,7 @@
 import {
   ARRAY,
   BIGINT,
+  BIGNUM,
   BIT,
   BLOB,
   BOOLEAN,
@@ -37,7 +38,6 @@ import {
   UTINYINT,
   UUID,
   VARCHAR,
-  VARINT,
 } from './DuckDBType.js';
 import {
   BOX_2D,
@@ -55,6 +55,7 @@ import {
 
 const simpleTypeMap: Record<string, DuckDBType> = {
   BIGINT: BIGINT,
+  BIGNUM: BIGNUM,
   BIT: BIT,
   BOOLEAN: BOOLEAN,
   BLOB: BLOB,
@@ -91,7 +92,6 @@ const simpleTypeMap: Record<string, DuckDBType> = {
   UTINYINT: UTINYINT,
   UUID: UUID,
   VARCHAR: VARCHAR,
-  VARINT: VARINT,
   WKB_BLOB: WKB_BLOB,
 };
 

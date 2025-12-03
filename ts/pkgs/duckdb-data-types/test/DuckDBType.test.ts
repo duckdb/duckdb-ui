@@ -4,6 +4,7 @@ import {
   ANY,
   ARRAY,
   BIGINT,
+  BIGNUM,
   BIT,
   BLOB,
   BOOLEAN,
@@ -12,6 +13,7 @@ import {
   DOUBLE,
   DuckDBAnyType,
   DuckDBBigIntType,
+  DuckDBBigNumType,
   DuckDBBitType,
   DuckDBBlobType,
   DuckDBBooleanType,
@@ -40,7 +42,6 @@ import {
   DuckDBUTinyIntType,
   DuckDBUUIDType,
   DuckDBVarCharType,
-  DuckDBVarIntType,
   ENUM,
   FLOAT,
   HUGEINT,
@@ -69,7 +70,6 @@ import {
   UTINYINT,
   UUID,
   VARCHAR,
-  VARINT,
 } from '../src/DuckDBType';
 
 suite('DuckDBBooleanType', () => {
@@ -928,23 +928,23 @@ suite('DuckDBAnyType', () => {
   });
 });
 
-suite('DuckDBVarIntType', () => {
+suite('DuckDBBigNumType', () => {
   test('toString', () => {
-    expect(VARINT.toString()).toBe('VARINT');
+    expect(BIGNUM.toString()).toBe('BIGNUM');
   });
   test('toString short', () => {
-    expect(VARINT.toString({ short: true })).toBe('VARINT');
+    expect(BIGNUM.toString({ short: true })).toBe('BIGNUM');
   });
   test('toString with alias', () => {
-    expect(DuckDBVarIntType.create('myvarint').toString()).toBe('myvarint');
+    expect(DuckDBBigNumType.create('mybignum').toString()).toBe('mybignum');
   });
   test('toJson', () => {
-    expect(VARINT.toJson()).toStrictEqual({ typeId: DuckDBTypeId.VARINT });
+    expect(BIGNUM.toJson()).toStrictEqual({ typeId: DuckDBTypeId.BIGNUM });
   });
   test('toJson with alias', () => {
-    expect(DuckDBVarIntType.create('myvarint').toJson()).toStrictEqual({
-      typeId: DuckDBTypeId.VARINT,
-      alias: 'myvarint',
+    expect(DuckDBBigNumType.create('mybignum').toJson()).toStrictEqual({
+      typeId: DuckDBTypeId.BIGNUM,
+      alias: 'mybignum',
     });
   });
 });

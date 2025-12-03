@@ -1,27 +1,27 @@
 import { expect, suite, test } from 'vitest';
-import { getVarIntFromBytes } from '../../src/conversion/getVarIntFromBytes';
+import { getBigNumFromBytes } from '../../src/conversion/getBigNumFromBytes';
 
-suite('getVarIntFromBytes', () => {
-  test('should return correct value for varint representation of 0', () => {
+suite('getBigNumFromBytes', () => {
+  test('should return correct value for bignum representation of 0', () => {
     expect(
-      getVarIntFromBytes(new Uint8Array([0x80, 0x00, 0x01, 0x00])),
+      getBigNumFromBytes(new Uint8Array([0x80, 0x00, 0x01, 0x00])),
     ).toEqual(0n);
   });
-  test('should return correct value for varint representation of 1', () => {
+  test('should return correct value for bignum representation of 1', () => {
     expect(
-      getVarIntFromBytes(new Uint8Array([0x80, 0x00, 0x01, 0x01])),
+      getBigNumFromBytes(new Uint8Array([0x80, 0x00, 0x01, 0x01])),
     ).toEqual(1n);
   });
-  test('should return correct value for varint representation of -1', () => {
+  test('should return correct value for bignum representation of -1', () => {
     expect(
-      getVarIntFromBytes(new Uint8Array([0x7f, 0xff, 0xfe, 0xfe])),
+      getBigNumFromBytes(new Uint8Array([0x7f, 0xff, 0xfe, 0xfe])),
     ).toEqual(-1n);
   });
-  test('should return correct value for max varint', () => {
-    // max VARINT = max IEEE double = 2^1023 * (1 + (1 − 2^−52)) ~= 1.7976931348623157 * 10^308
+  test('should return correct value for max bignum', () => {
+    // max BIGNUM = max IEEE double = 2^1023 * (1 + (1 − 2^−52)) ~= 1.7976931348623157 * 10^308
     // Note that the storage format supports much larger than this, but DuckDB specifies this max to support conversion to/from DOUBLE.
     expect(
-      getVarIntFromBytes(
+      getBigNumFromBytes(
         // prettier-ignore
         new Uint8Array([0x80, 0x00, 0x80,
           0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xF8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -38,10 +38,10 @@ suite('getVarIntFromBytes', () => {
       179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368n,
     );
   });
-  test('should return correct value for min varint', () => {
-    // min VARINT = -max VARINT
+  test('should return correct value for min bignum', () => {
+    // min BIGNUM = -max BIGNUM
     expect(
-      getVarIntFromBytes(
+      getBigNumFromBytes(
         // prettier-ignore
         new Uint8Array([0x7F, 0xFF, 0x7F,
           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,

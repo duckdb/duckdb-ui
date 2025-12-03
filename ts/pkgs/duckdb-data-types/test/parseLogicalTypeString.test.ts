@@ -2,6 +2,7 @@ import { expect, suite, test } from 'vitest';
 import {
   ARRAY,
   BIGINT,
+  BIGNUM,
   BIT,
   BLOB,
   BOOLEAN,
@@ -33,7 +34,6 @@ import {
   UTINYINT,
   UUID,
   VARCHAR,
-  VARINT,
 } from '../src/DuckDBType';
 import {
   BOX_2D,
@@ -314,8 +314,8 @@ suite('parseLogicalTypeString', () => {
   test('VARCHAR', () => {
     expect(parseLogicalTypeString('VARCHAR')).toStrictEqual(VARCHAR);
   });
-  test('VARINT', () => {
-    expect(parseLogicalTypeString('VARINT')).toStrictEqual(VARINT);
+  test('BIGNUM', () => {
+    expect(parseLogicalTypeString('BIGNUM')).toStrictEqual(BIGNUM);
   });
   test('BLOB', () => {
     expect(parseLogicalTypeString('BLOB')).toStrictEqual(BLOB);
