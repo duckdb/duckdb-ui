@@ -95,11 +95,26 @@ export function getTimeZoneName(
   return timeZoneName;
 }
 
+const MAX_JS_DATE_MS = 8.64e15; // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date#the_epoch_timestamps_and_invalid_date
+const MS_IN_400_YEARS = 12622780800000; // 1000 * 60 * 60 * 24 * 365.2425 * 400 (handles leap years)
+
 export function getTimeZoneOffsetInMinutes(
-  microsecondsSinceEpoch: number,
+  millisecondsSinceEpoch: number,
   timeZone: string,
 ): number {
-  const date = new Date(microsecondsSinceEpoch);
+  let milliseconds = millisecondsSinceEpoch;
+  // Constrain milliseconds value to the valid range for JS Date. Modify value by a multiple of 400 years (in
+  // milliseconds) to preserve relative place in Gregorian calendar.
+  if (milliseconds < -MAX_JS_DATE_MS) {
+    milliseconds +=
+      Math.ceil((-MAX_JS_DATE_MS - milliseconds) / MS_IN_400_YEARS) *
+      MS_IN_400_YEARS;
+  } else if (milliseconds > MAX_JS_DATE_MS) {
+    milliseconds -=
+      Math.ceil((milliseconds - MAX_JS_DATE_MS) / MS_IN_400_YEARS) *
+      MS_IN_400_YEARS;
+  }
+  const date = new Date(milliseconds);
   const timeZoneName = getTimeZoneName(date, timeZone);
   if (!timeZoneName) {
     return 0;

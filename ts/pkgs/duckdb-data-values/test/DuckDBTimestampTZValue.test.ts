@@ -70,6 +70,55 @@ suite('DuckDBTimestampTZValue', () => {
       }),
     ).toStrictEqual('2021-08-03 16:50:06.0078+12:45');
   });
+  test('should render a large positive timestamptz value to the correct string', () => {
+    expect(
+      new DuckDBTimestampTZValue(2353318271999999000n).toDuckDBString({
+        timeZone: 'America/New_York',
+      }),
+    ).toStrictEqual('76543-09-08 19:59:59.999-04');
+  });
+  test('should render a large negative (AD) timestamptz value to the correct string', () => {
+    expect(
+      new DuckDBTimestampTZValue(-58261244276543211n).toDuckDBString({
+        timeZone: 'America/New_York',
+      }),
+    ).toStrictEqual('0123-10-10 20:06:03.456789-04:56');
+  });
+  test('should render a large negative (BC) timestamptz value to the correct string', () => {
+    expect(
+      new DuckDBTimestampTZValue(-65992661876543211n).toDuckDBString({
+        timeZone: 'America/New_York',
+      }),
+    ).toStrictEqual('0123-10-10 (BC) 20:06:03.456789-04:56');
+  });
+  test('should render the max timestamptz value to the correct string', () => {
+    expect(
+      new DuckDBTimestampTZValue(9223372036854775806n).toDuckDBString({
+        timeZone: 'America/New_York',
+      }),
+    ).toStrictEqual('294247-01-09 23:00:54.775806-05');
+  });
+  test('should render the min timestamptz value to the correct string', () => {
+    expect(
+      new DuckDBTimestampTZValue(-9223372022400000000n).toDuckDBString({
+        timeZone: 'America/New_York',
+      }),
+    ).toStrictEqual('290309-12-21 (BC) 19:04:00-04:56');
+  });
+  test('should render the positive infinity timestamptz value to the correct string', () => {
+    expect(
+      new DuckDBTimestampTZValue(9223372036854775807n).toDuckDBString({
+        timeZone: 'America/New_York',
+      }),
+    ).toStrictEqual('infinity');
+  });
+  test('should render the negative infinity timestamptz value to the correct string', () => {
+    expect(
+      new DuckDBTimestampTZValue(-9223372036854775807n).toDuckDBString({
+        timeZone: 'America/New_York',
+      }),
+    ).toStrictEqual('-infinity');
+  });
 
   suite('toSql', () => {
     test('should render timestamptz to SQL', () => {
