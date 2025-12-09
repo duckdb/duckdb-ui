@@ -9,6 +9,9 @@
 #include "utils/serialization.hpp"
 #include "version.hpp"
 #include "watcher.hpp"
+#if DUCKDB_MAJOR_VERSION == 1 && DUCKDB_MINOR_VERSION == 5
+#include <duckdb/common/enums/database_modification_type.hpp>
+#endif
 #include <duckdb/common/http_util.hpp>
 #include <duckdb/common/serializer/binary_serializer.hpp>
 #include <duckdb/common/serializer/memory_stream.hpp>
@@ -573,8 +576,14 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
       appender_context->RunFunctionInTransaction([&] {
         auto &catalog = duckdb::Catalog::GetCatalog(*appender_context,
                                                     result_database_name);
+#if DUCKDB_MAJOR_VERSION == 1 && DUCKDB_MINOR_VERSION == 5
+        MetaTransaction::Get(*appender_context)
+            .ModifyDatabase(catalog.GetAttached(),
+                            DatabaseModificationType::CREATE_CATALOG_ENTRY);
+#else
         MetaTransaction::Get(*appender_context)
             .ModifyDatabase(catalog.GetAttached());
+#endif
         catalog.CreateTable(*appender_context, std::move(result_table_info));
       });
 
@@ -619,7 +628,8 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
           chunk_to_add = &chunk_prefix;
         }
         success_result.chunks.push_back(
-            {static_cast<uint16_t>(chunk_to_add->size()), std::move(chunk_to_add->data)});
+            {static_cast<uint16_t>(chunk_to_add->size()),
+             std::move(chunk_to_add->data)});
         rows_in_result += chunk_to_add->size();
       }
     }
@@ -705,7 +715,8 @@ void HttpServer::SetResponseErrorResult(httplib::Response &res,
   SetResponseContent(res, response_content);
 }
 
-void HttpServer::CopyAndSlice(duckdb::DataChunk &source, duckdb::DataChunk &target, idx_t row_count) {
+void HttpServer::CopyAndSlice(duckdb::DataChunk &source,
+                              duckdb::DataChunk &target, idx_t row_count) {
   target.InitializeEmpty(source.GetTypes());
   target.Reference(source);
   target.Slice(0, row_count);
