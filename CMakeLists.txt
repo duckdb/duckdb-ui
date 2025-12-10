@@ -9,6 +9,8 @@ set(TARGET_NAME ui)
 # from vcpkg.json to prevent needlessly installing it..
 find_package(OpenSSL REQUIRED)
 
+include_directories(${OPENSSL_INCLUDE_DIR})
+
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 
 project(${TARGET_NAME})
@@ -58,6 +60,7 @@ build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} " " ${EXTENSION_SOURCES})
 
 target_link_libraries(${EXTENSION_NAME} OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(${TARGET_NAME}_loadable_extension OpenSSL::SSL OpenSSL::Crypto)
 
 install(
   TARGETS ${EXTENSION_NAME}
