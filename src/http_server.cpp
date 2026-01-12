@@ -138,16 +138,18 @@ bool HttpServer::Stop() {
 }
 
 void HttpServer::DoStop() {
-  if (event_dispatcher) {
-    event_dispatcher->Close();
-    event_dispatcher = nullptr;
-  }
-  server.stop();
-
+  // First stop the watcher (since it needs a valid event dispatcher and server)
   if (watcher) {
     watcher->Stop();
     watcher = nullptr;
   }
+
+  // Then, stop the event dispatcher
+  if (event_dispatcher) {
+    event_dispatcher->Close();
+  }
+
+  server.stop();
 
   if (main_thread) {
     main_thread->join();
@@ -156,6 +158,7 @@ void HttpServer::DoStop() {
 
   ddb_instance.reset();
   http_params = nullptr;
+  event_dispatcher = nullptr;
   remote_url = "";
   local_port = 0;
 }
@@ -213,7 +216,7 @@ void HttpServer::HandleGetLocalEvents(const httplib::Request &req,
                                       httplib::Response &res) {
   res.set_chunked_content_provider(
       "text/event-stream", [&](size_t /*offset*/, httplib::DataSink &sink) {
-        if (event_dispatcher->WaitEvent(&sink)) {
+        if (event_dispatcher && event_dispatcher->WaitEvent(&sink)) {
           return true;
         }
 
@@ -379,7 +382,7 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
       req.get_header_value("X-DuckDB-UI-Parameter-Count");
   if (!parameter_count_string.empty()) {
     auto parameter_count = std::stoi(parameter_count_string);
-    for (idx_t i = 0; i < parameter_count; ++i) {
+    for (auto i = 0; i < parameter_count; ++i) {
       auto parameter_value = DecodeBase64(req.get_header_value(
           StringUtil::Format("X-DuckDB-UI-Parameter-Value-%d", i)));
       parameter_values.push_back(parameter_value);
@@ -464,7 +467,7 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
 
   // If there's more than one statement, run all but the last.
   if (statement_count > 1) {
-    for (auto i = 0; i < statement_count - 1; ++i) {
+    for (size_t i = 0; i < statement_count - 1; ++i) {
       auto pending = connection->PendingQuery(std::move(statements[i]), true);
       // Return any error found before execution.
       if (pending->HasError()) {
@@ -611,7 +614,7 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
       if (appender && rows_appended < result_table_row_limit) {
         duckdb::DataChunk *chunk_to_append = chunk.get();
         duckdb::DataChunk chunk_prefix;
-        auto rows_left = result_table_row_limit - rows_appended;
+        const idx_t rows_left = result_table_row_limit - rows_appended;
         if (chunk->size() > rows_left) {
           HttpServer::CopyAndSlice(*chunk, chunk_prefix, rows_left);
           chunk_to_append = &chunk_prefix;
@@ -622,7 +625,7 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
       if (rows_in_result < result_row_limit) {
         duckdb::DataChunk *chunk_to_add = chunk.get();
         duckdb::DataChunk chunk_prefix;
-        auto rows_left = result_row_limit - rows_in_result;
+        const idx_t rows_left = result_row_limit - rows_in_result;
         if (chunk->size() > rows_left) {
           HttpServer::CopyAndSlice(*chunk, chunk_prefix, rows_left);
           chunk_to_add = &chunk_prefix;
