@@ -16,7 +16,7 @@
 namespace httplib = duckdb_httplib_openssl;
 
 namespace duckdb {
-class HTTPParams;
+struct HTTPParams;
 class MemoryStream;
 
 namespace ui {
