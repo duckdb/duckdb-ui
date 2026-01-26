@@ -77,9 +77,16 @@ void IsUIStartedTableFunc(ClientContext &context, TableFunctionInput &input,
 
 void InitStorageExtension(duckdb::DatabaseInstance &db) {
   auto &config = db.config;
+
+#if DUCKDB_VERSION_AT_MOST(1, 4, 4)
   auto ext = duckdb::make_uniq<duckdb::StorageExtension>();
   ext->storage_info = duckdb::make_uniq<UIStorageExtensionInfo>();
   config.storage_extensions[STORAGE_EXTENSION_KEY] = std::move(ext);
+#else
+	auto ext = duckdb::make_shared_ptr<duckdb::StorageExtension>();
+	ext->storage_info = duckdb::make_uniq<UIStorageExtensionInfo>();
+	StorageExtension::Register(config, STORAGE_EXTENSION_KEY, ext);
+#endif
 }
 
 #ifdef DUCKDB_CPP_EXTENSION_ENTRY

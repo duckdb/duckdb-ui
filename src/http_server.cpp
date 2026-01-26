@@ -5,12 +5,15 @@
 #include "state.hpp"
 #include "utils/encoding.hpp"
 #include "utils/env.hpp"
+#include "utils/helpers.hpp"
 #include "utils/md_helpers.hpp"
 #include "utils/serialization.hpp"
 #include "version.hpp"
 #include "watcher.hpp"
-#if DUCKDB_MAJOR_VERSION == 1 && DUCKDB_MINOR_VERSION == 5
+
+#if DUCKDB_VERSION_AT_LEAST(1, 5, 0)
 #include <duckdb/common/enums/database_modification_type.hpp>
+#include <duckdb/main/settings.hpp>
 #endif
 #include <duckdb/common/http_util.hpp>
 #include <duckdb/common/serializer/binary_serializer.hpp>
@@ -430,11 +433,15 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
       UIStorageExtensionInfo::GetState(*db).FindOrCreateConnection(
           *db, connection_name);
   auto &context = *connection->context;
-  auto &config = ClientConfig::GetConfig(context);
-
   // Set errors_as_json
   if (!errors_as_json_string.empty()) {
+#if DUCKDB_VERSION_AT_MOST(1, 4, 4)
+	auto &config = ClientConfig::GetConfig(context);
     config.errors_as_json = errors_as_json_string == "true";
+#else
+	auto &config = DBConfig::GetConfig(context);
+	config.user_settings.SetUserSetting(ErrorsAsJSONSetting::SettingIndex, true);
+#endif
   }
 
   // Set current database & schema

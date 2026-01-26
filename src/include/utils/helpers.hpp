@@ -14,6 +14,11 @@
 	(DUCKDB_MAJOR_VERSION < (major) || (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION < (minor)) ||          \
 	 (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION == (minor) && DUCKDB_PATCH_VERSION <= (patch)))
 
+
+#define DUCKDB_VERSION_AT_LEAST(major, minor, patch)                                                                   \
+	(DUCKDB_MAJOR_VERSION > (major) || (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION > (minor)) ||          \
+	 (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION == (minor) && DUCKDB_PATCH_VERSION >= (patch)))
+
 namespace duckdb {
 
 typedef std::string (*simple_tf_t)(ClientContext &);
