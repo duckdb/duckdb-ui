@@ -1,5 +1,7 @@
 #include "state.hpp"
 
+#include "utils/helpers.hpp"
+
 #include <duckdb/main/database.hpp>
 
 namespace duckdb {
@@ -7,12 +9,19 @@ namespace duckdb {
 UIStorageExtensionInfo &
 UIStorageExtensionInfo::GetState(const DatabaseInstance &instance) {
   auto &config = instance.config;
+#if DUCKDB_VERSION_AT_LEAST(1, 5, 0)
+  auto ext = StorageExtension::Find(config, STORAGE_EXTENSION_KEY);
+  if (!ext) {
+    throw std::runtime_error("Fatal error: couldn't find the extension state.");
+  }
+  return *static_cast<UIStorageExtensionInfo *>(ext->storage_info.get());
+#else
   auto it = config.storage_extensions.find(STORAGE_EXTENSION_KEY);
   if (it == config.storage_extensions.end()) {
-    throw std::runtime_error(
-        "Fatal error: couldn't find the UI extension state.");
+    throw std::runtime_error("Fatal error: couldn't find the extension state.");
   }
   return *static_cast<UIStorageExtensionInfo *>(it->second->storage_info.get());
+#endif
 }
 
 shared_ptr<Connection>

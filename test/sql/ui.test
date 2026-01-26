@@ -1,3 +1,4 @@
 # name: test/sql/ui.test
 # description: test ui extension
-# group: [ui]
+# group: [sql]
+

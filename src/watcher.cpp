@@ -25,9 +25,9 @@ bool WasCatalogUpdated(DatabaseInstance &db, Connection &connection,
   // Check currently attached databases
   for (const auto &db_ref : databases) {
 #if DUCKDB_VERSION_AT_MOST(1, 3, 2)
-	auto &db_instance = db_ref.get();
+    auto &db_instance = db_ref.get();
 #else
-	auto &db_instance = *db_ref;
+    auto &db_instance = *db_ref;
 #endif
     if (db_instance.IsTemporary()) {
       continue; // ignore temp databases
@@ -36,7 +36,8 @@ bool WasCatalogUpdated(DatabaseInstance &db, Connection &connection,
     db_oids.insert(db_instance.oid);
     auto &catalog = db_instance.GetCatalog();
     auto current_version = catalog.GetCatalogVersion(context);
-    auto last_version_it = last_state.db_to_catalog_version.find(db_instance.oid);
+    auto last_version_it =
+        last_state.db_to_catalog_version.find(db_instance.oid);
     if (last_version_it == last_state.db_to_catalog_version.end() // first time
         || !(last_version_it->second == current_version)) {       // updated
       has_change = true;

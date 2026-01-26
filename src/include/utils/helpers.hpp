@@ -6,20 +6,28 @@
 #endif
 #include <type_traits>
 
-// TODO we cannot run these checks because they are not defined for DuckDB < 1.4.x
-// #ifndef DUCKDB_MAJOR_VERSION
-// #error "DUCKDB_MAJOR_VERSION is not defined"
+// TODO we cannot run these checks because they are not defined for DuckDB
+// < 1.4.x #ifndef DUCKDB_MAJOR_VERSION #error "DUCKDB_MAJOR_VERSION is not
+// defined"
 // ...
-#define DUCKDB_VERSION_AT_MOST(major, minor, patch)                                                                    \
-	(DUCKDB_MAJOR_VERSION < (major) || (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION < (minor)) ||          \
-	 (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION == (minor) && DUCKDB_PATCH_VERSION <= (patch)))
+#define DUCKDB_VERSION_AT_MOST(major, minor, patch)                            \
+  (DUCKDB_MAJOR_VERSION < (major) ||                                           \
+   (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION < (minor)) ||      \
+   (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION == (minor) &&      \
+    DUCKDB_PATCH_VERSION <= (patch)))
+
+#define DUCKDB_VERSION_AT_LEAST(major, minor, patch)                           \
+  (DUCKDB_MAJOR_VERSION > (major) ||                                           \
+   (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION > (minor)) ||      \
+   (DUCKDB_MAJOR_VERSION == (major) && DUCKDB_MINOR_VERSION == (minor) &&      \
+    DUCKDB_PATCH_VERSION >= (patch)))
 
 namespace duckdb {
 
 typedef std::string (*simple_tf_t)(ClientContext &);
 
 struct RunOnceTableFunctionState : GlobalTableFunctionState {
-  RunOnceTableFunctionState() : run(false) {};
+  RunOnceTableFunctionState() : run(false){};
   std::atomic<bool> run;
 
   static unique_ptr<GlobalTableFunctionState> Init(ClientContext &,
