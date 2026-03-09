@@ -587,13 +587,13 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
       appender_context->RunFunctionInTransaction([&] {
         auto &catalog = duckdb::Catalog::GetCatalog(*appender_context,
                                                     result_database_name);
-#if DUCKDB_MAJOR_VERSION == 1 && DUCKDB_MINOR_VERSION == 5
+#if DUCKDB_MAJOR_VERSION == 1 && DUCKDB_MINOR_VERSION < 5
+        MetaTransaction::Get(*appender_context)
+            .ModifyDatabase(catalog.GetAttached());
+#else
         MetaTransaction::Get(*appender_context)
             .ModifyDatabase(catalog.GetAttached(),
                             DatabaseModificationType::CREATE_CATALOG_ENTRY);
-#else
-        MetaTransaction::Get(*appender_context)
-            .ModifyDatabase(catalog.GetAttached());
 #endif
         catalog.CreateTable(*appender_context, std::move(result_table_info));
       });

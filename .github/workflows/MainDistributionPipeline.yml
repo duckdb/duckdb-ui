@@ -5,18 +5,18 @@ name: Main Extension Distribution Pipeline
 on:
   pull_request:
     paths-ignore:
-      - ".github/workflows/TypeScriptWorkspace.yml"
-      - "docs/**"
-      - "ts/**"
-      - "README.md"
+      - '.github/workflows/TypeScriptWorkspace.yml'
+      - 'docs/**'
+      - 'ts/**'
+      - 'README.md'
   push:
     branches:
-      - "main"
+      - 'main'
     paths-ignore:
-      - ".github/workflows/TypeScriptWorkspace.yml"
-      - "docs/**"
-      - "ts/**"
-      - "README.md"
+      - '.github/workflows/TypeScriptWorkspace.yml'
+      - 'docs/**'
+      - 'ts/**'
+      - 'README.md'
   workflow_dispatch:
 
 concurrency:
@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   duckdb-main-build:
-    name: Build main extension binaries
+    name: Build UI extension for main branch
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
       ci_tools_version: main
@@ -34,7 +34,38 @@ jobs:
       extension_name: ui
 
   duckdb-next-patch-build:
-    name: Build next patch extension binaries
+    name: Build UI extension for next patch (v1.5-variegata)
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
+    with:
+      ci_tools_version: v1.5-variegata
+      duckdb_version: v1.5-variegata
+      exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
+      extension_name: ui
+
+  duckdb-stable-build:
+    name: Build UI extension for DuckDB v1.5.0
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5.0
+    with:
+      ci_tools_version: v1.5.0
+      duckdb_version: v1.5.0
+      exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
+      extension_name: ui
+
+  duckdb-stable-deploy:
+    if: ${{ github.repository == 'duckdb/duckdb-ui' && ( startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ) }}
+    name: Deploy UI extension for DuckDB v1.5.0
+    needs: duckdb-stable-build
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_deploy.yml@v1.5.0
+    secrets: inherit
+    with:
+      extension_name: ui
+      ci_tools_version: v1.5.0
+      duckdb_version: v1.5.0
+      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads'
+      deploy_latest: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
+
+  duckdb-lts-next-patch-build:
+    name: Build UI extension binaries for next LTS patch (v1.4-andium)
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.4-andium
     with:
       ci_tools_version: v1.4-andium
@@ -42,8 +73,8 @@ jobs:
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
-  duckdb-stable-build:
-    name: Build UI extension for DuckDB v1.4.4
+  duckdb-lts-build:
+    name: Build UI extension for DuckDB v1.4.4 (LTS)
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.4.4
     with:
       ci_tools_version: v1.4.4
@@ -51,9 +82,9 @@ jobs:
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
-  duckdb-stable-deploy:
+  duckdb-lts-deploy:
     if: ${{ github.repository == 'duckdb/duckdb-ui' && ( startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ) }}
-    name: Deploy stable extension binaries
+    name: Deploy UI extension for DuckDB v1.4.4 (LTS)
     needs: duckdb-stable-build
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_deploy.yml@v1.4.4
     secrets: inherit
