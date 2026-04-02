@@ -3,6 +3,8 @@
 #include <duckdb/common/exception.hpp>
 #include <duckdb/main/client_context.hpp>
 
+#define UI_LOCAL_HOST_SETTING_NAME "ui_local_host"
+#define UI_LOCAL_HOST_SETTING_DEFAULT "localhost"
 #define UI_LOCAL_PORT_SETTING_NAME "ui_local_port"
 #define UI_LOCAL_PORT_SETTING_DEFAULT 4213
 #define UI_REMOTE_URL_SETTING_NAME "ui_remote_url"
@@ -25,6 +27,7 @@ T GetSetting(const ClientContext &context, const char *setting_name) {
 }
 } // namespace internal
 
+std::string GetLocalHost(const ClientContext &);
 std::string GetRemoteUrl(const ClientContext &);
 uint16_t GetLocalPort(const ClientContext &);
 uint32_t GetPollingInterval(const ClientContext &);

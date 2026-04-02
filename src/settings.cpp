@@ -20,6 +20,10 @@ std::string GetRemoteUrl(const ClientContext &context) {
   return internal::GetSetting<std::string>(context, UI_REMOTE_URL_SETTING_NAME);
 }
 
+std::string GetLocalHost(const ClientContext &context) {
+  return internal::GetSetting<std::string>(context, UI_LOCAL_HOST_SETTING_NAME);
+}
+
 uint16_t GetLocalPort(const ClientContext &context) {
   return internal::GetSetting<uint16_t>(context, UI_LOCAL_PORT_SETTING_NAME);
 }

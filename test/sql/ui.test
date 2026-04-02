@@ -2,3 +2,25 @@
 # description: test ui extension
 # group: [sql]
 
+require ui
+
+# Verify the ui_local_host setting exists with the default value
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_host';
+----
+ui_local_host	localhost
+
+# Verify the ui_local_host setting can be changed
+statement ok
+SET ui_local_host = '0.0.0.0';
+
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_host';
+----
+ui_local_host	0.0.0.0
+
+# Verify the ui_local_port setting still works
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_port';
+----
+ui_local_port	4213

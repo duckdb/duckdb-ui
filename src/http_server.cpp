@@ -101,25 +101,28 @@ const HttpServer &HttpServer::Start(ClientContext &context, bool *was_started) {
     *was_started = false;
   }
 
+  const auto host = GetLocalHost(context);
   const auto remote_url = GetRemoteUrl(context);
   const auto port = GetLocalPort(context);
   auto &http_util = HTTPUtil::Get(*context.db);
   // FIXME - https://github.com/duckdb/duckdb/pull/17655 will remove `unused`
   auto http_params = http_util.InitializeParameters(context, "unused");
   auto server = GetInstance(context);
-  server->DoStart(port, remote_url, std::move(http_params));
+  server->DoStart(host, port, remote_url, std::move(http_params));
   return *server;
 }
 
-void HttpServer::DoStart(const uint16_t _local_port,
+void HttpServer::DoStart(const std::string &_local_host,
+                         const uint16_t _local_port,
                          const std::string &_remote_url,
                          unique_ptr<HTTPParams> _http_params) {
   if (Started()) {
     throw std::runtime_error("HttpServer already started");
   }
 
+  local_host = _local_host;
   local_port = _local_port;
-  local_url = StringUtil::Format("http://localhost:%d", local_port);
+  local_url = StringUtil::Format("http://%s:%d", local_host, local_port);
   remote_url = _remote_url;
   http_params = std::move(_http_params);
   user_agent =
@@ -163,11 +166,12 @@ void HttpServer::DoStop() {
   http_params = nullptr;
   event_dispatcher = nullptr;
   remote_url = "";
+  local_host = "";
   local_port = 0;
 }
 
 std::string HttpServer::LocalUrl() const {
-  return StringUtil::Format("http://localhost:%d/", local_port);
+  return StringUtil::Format("http://%s:%d/", local_host, local_port);
 }
 
 shared_ptr<DatabaseInstance> HttpServer::LockDatabaseInstance() {
@@ -203,7 +207,7 @@ void HttpServer::Run() {
                   const httplib::ContentReader &content_reader) {
                 HandleTokenize(req, res, content_reader);
               });
-  server.listen("localhost", local_port);
+  server.listen(local_host, local_port);
 }
 
 void HttpServer::HandleGetInfo(const httplib::Request &req,

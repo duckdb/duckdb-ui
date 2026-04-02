@@ -42,8 +42,8 @@ private:
   friend class Watcher;
 
   // Lifecycle
-  void DoStart(const uint16_t local_port, const std::string &remote_url,
-               unique_ptr<HTTPParams>);
+  void DoStart(const std::string &local_host, const uint16_t local_port,
+               const std::string &remote_url, unique_ptr<HTTPParams>);
   void DoStop();
   void Run();
   void UpdateDatabaseInstance(shared_ptr<DatabaseInstance> context_db);
@@ -75,6 +75,7 @@ private:
   static void CopyAndSlice(duckdb::DataChunk &source, duckdb::DataChunk &target,
                            idx_t row_count);
 
+  std::string local_host;
   uint16_t local_port;
   std::string local_url;
   std::string remote_url;
