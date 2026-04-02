@@ -108,6 +108,15 @@ static void LoadInternal(DatabaseInstance &instance) {
 
   auto &config = DBConfig::GetConfig(instance);
   {
+    auto def = GetEnvOrDefault(UI_LOCAL_HOST_SETTING_NAME,
+                               UI_LOCAL_HOST_SETTING_DEFAULT);
+    config.AddExtensionOption(
+        UI_LOCAL_HOST_SETTING_NAME,
+        "Local host on which the UI server listens",
+        LogicalType::VARCHAR, Value(def));
+  }
+
+  {
     auto default_port = GetEnvOrDefaultInt(UI_LOCAL_PORT_SETTING_NAME,
                                            UI_LOCAL_PORT_SETTING_DEFAULT);
     config.AddExtensionOption(
