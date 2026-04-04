@@ -27,6 +27,7 @@ set(EXTENSION_SOURCES
     src/utils/helpers.cpp
     src/utils/md_helpers.cpp
     src/utils/serialization.cpp
+    src/utils/token.cpp
     src/watcher.cpp)
 
 add_definitions(-DDUCKDB_MAJOR_VERSION=${DUCKDB_MAJOR_VERSION})

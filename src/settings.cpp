@@ -30,6 +30,11 @@ uint16_t GetLocalPort(const ClientContext &context) {
 
 uint32_t GetPollingInterval(const ClientContext &context) {
   return internal::GetSetting<uint32_t>(context,
-                                        UI_POLLING_INTERVAL_SETTING_NAME);
+                                         UI_POLLING_INTERVAL_SETTING_NAME);
+}
+
+bool GetEnableTokenAuth(const ClientContext &context) {
+  return internal::GetSetting<bool>(context,
+                                    UI_ENABLE_TOKEN_AUTH_SETTING_NAME);
 }
 } // namespace duckdb

@@ -37,13 +37,15 @@ public:
   static bool Stop();
 
   std::string LocalUrl() const;
+  std::string GetAuthToken() const;
 
 private:
   friend class Watcher;
 
   // Lifecycle
   void DoStart(const std::string &local_host, const uint16_t local_port,
-               const std::string &remote_url, unique_ptr<HTTPParams>);
+               const std::string &remote_url, unique_ptr<HTTPParams>,
+               bool token_auth_enabled);
   void DoStop();
   void Run();
   void UpdateDatabaseInstance(shared_ptr<DatabaseInstance> context_db);
@@ -62,6 +64,11 @@ private:
   void HandleTokenize(const httplib::Request &req, httplib::Response &res,
                       const httplib::ContentReader &content_reader);
   std::string ReadContent(const httplib::ContentReader &content_reader);
+
+  // Token authentication
+  bool ValidateToken(const httplib::Request &req, httplib::Response &res);
+  void SetTokenCookie(httplib::Response &res);
+  static std::string ExtractTokenFromCookie(const std::string &cookie_header);
 
   // Http responses
   void SetResponseContent(httplib::Response &res, const MemoryStream &content);
@@ -86,6 +93,8 @@ private:
   unique_ptr<EventDispatcher> event_dispatcher;
   unique_ptr<Watcher> watcher;
   unique_ptr<HTTPParams> http_params;
+  std::string auth_token;
+  bool token_auth_enabled;
 
   static unique_ptr<HttpServer> server_instance;
 };

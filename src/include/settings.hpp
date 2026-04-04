@@ -11,6 +11,8 @@
 #define UI_REMOTE_URL_SETTING_DEFAULT "https://ui.duckdb.org"
 #define UI_POLLING_INTERVAL_SETTING_NAME "ui_polling_interval"
 #define UI_POLLING_INTERVAL_SETTING_DEFAULT 284
+#define UI_ENABLE_TOKEN_AUTH_SETTING_NAME "ui_enable_token_auth"
+#define UI_ENABLE_TOKEN_AUTH_SETTING_DEFAULT true
 
 namespace duckdb {
 
@@ -31,5 +33,6 @@ std::string GetLocalHost(const ClientContext &);
 std::string GetRemoteUrl(const ClientContext &);
 uint16_t GetLocalPort(const ClientContext &);
 uint32_t GetPollingInterval(const ClientContext &);
+bool GetEnableTokenAuth(const ClientContext &);
 
 } // namespace duckdb

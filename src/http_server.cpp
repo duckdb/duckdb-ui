@@ -4,6 +4,7 @@
 #include "settings.hpp"
 #include "state.hpp"
 #include "utils/encoding.hpp"
+#include "utils/token.hpp"
 #include "utils/env.hpp"
 #include "utils/helpers.hpp"
 #include "utils/md_helpers.hpp"
@@ -108,14 +109,16 @@ const HttpServer &HttpServer::Start(ClientContext &context, bool *was_started) {
   // FIXME - https://github.com/duckdb/duckdb/pull/17655 will remove `unused`
   auto http_params = http_util.InitializeParameters(context, "unused");
   auto server = GetInstance(context);
-  server->DoStart(host, port, remote_url, std::move(http_params));
+  const auto token_auth = GetEnableTokenAuth(context);
+  server->DoStart(host, port, remote_url, std::move(http_params), token_auth);
   return *server;
 }
 
 void HttpServer::DoStart(const std::string &_local_host,
                          const uint16_t _local_port,
                          const std::string &_remote_url,
-                         unique_ptr<HTTPParams> _http_params) {
+                         unique_ptr<HTTPParams> _http_params,
+                         bool _token_auth_enabled) {
   if (Started()) {
     throw std::runtime_error("HttpServer already started");
   }
@@ -125,6 +128,8 @@ void HttpServer::DoStart(const std::string &_local_host,
   local_url = StringUtil::Format("http://%s:%d", local_host, local_port);
   remote_url = _remote_url;
   http_params = std::move(_http_params);
+  token_auth_enabled = _token_auth_enabled;
+  auth_token = GenerateToken();
   user_agent =
       StringUtil::Format("duckdb-ui/%s-%s(%s)", DuckDB::LibraryVersion(),
                          UI_EXTENSION_VERSION, DuckDB::Platform());
@@ -174,6 +179,66 @@ std::string HttpServer::LocalUrl() const {
   return StringUtil::Format("http://%s:%d/", local_host, local_port);
 }
 
+std::string HttpServer::GetAuthToken() const {
+  return auth_token;
+}
+
+std::string HttpServer::ExtractTokenFromCookie(const std::string &cookie_header) {
+  const std::string prefix = "duckdb_ui_token=";
+  size_t pos = cookie_header.find(prefix);
+  if (pos == std::string::npos) {
+    return "";
+  }
+  pos += prefix.size();
+  size_t end = cookie_header.find(';', pos);
+  if (end == std::string::npos) {
+    return cookie_header.substr(pos);
+  }
+  return cookie_header.substr(pos, end - pos);
+}
+
+void HttpServer::SetTokenCookie(httplib::Response &res) {
+  res.set_header("Set-Cookie",
+                 "duckdb_ui_token=" + auth_token +
+                     "; Path=/; HttpOnly; SameSite=Strict");
+}
+
+bool HttpServer::ValidateToken(const httplib::Request &req,
+                               httplib::Response &res) {
+  if (!token_auth_enabled) {
+    return true;
+  }
+
+  // Check Authorization header: "token <TOKEN>"
+  auto auth_header = req.get_header_value("Authorization");
+  if (auth_header.size() > 6 && auth_header.compare(0, 6, "token ") == 0) {
+    if (auth_header.substr(6) == auth_token) {
+      SetTokenCookie(res);
+      return true;
+    }
+  }
+
+  // Check URL parameter: ?token=<TOKEN>
+  if (req.has_param("token")) {
+    if (req.get_param_value("token") == auth_token) {
+      SetTokenCookie(res);
+      return true;
+    }
+  }
+
+  // Check cookie: duckdb_ui_token=<TOKEN>
+  auto cookie_header = req.get_header_value("Cookie");
+  if (!cookie_header.empty()) {
+    auto cookie_token = ExtractTokenFromCookie(cookie_header);
+    if (cookie_token == auth_token) {
+      return true;
+    }
+  }
+
+  res.status = 401;
+  return false;
+}
+
 shared_ptr<DatabaseInstance> HttpServer::LockDatabaseInstance() {
   return ddb_instance.lock();
 }
@@ -221,6 +286,10 @@ void HttpServer::HandleGetInfo(const httplib::Request &req,
 
 void HttpServer::HandleGetLocalEvents(const httplib::Request &req,
                                       httplib::Response &res) {
+  if (!ValidateToken(req, res)) {
+    return;
+  }
+
   res.set_chunked_content_provider(
       "text/event-stream", [&](size_t /*offset*/, httplib::DataSink &sink) {
         if (event_dispatcher && event_dispatcher->WaitEvent(&sink)) {
@@ -234,11 +303,7 @@ void HttpServer::HandleGetLocalEvents(const httplib::Request &req,
 
 void HttpServer::HandleGetLocalToken(const httplib::Request &req,
                                      httplib::Response &res) {
-  // GET requests don't include Origin, so use Referer instead.
-  // Referer includes the path, so only compare the start.
-  auto referer = req.get_header_value("Referer");
-  if (referer.compare(0, local_url.size(), local_url) != 0) {
-    res.status = 401;
+  if (!ValidateToken(req, res)) {
     return;
   }
 
@@ -286,6 +351,10 @@ void HttpServer::InitClientFromParams(httplib::Client &client) {
 
 void HttpServer::HandleGet(const httplib::Request &req,
                            httplib::Response &res) {
+  if (!ValidateToken(req, res)) {
+    return;
+  }
+
   // Create HTTP client to remote URL
   // TODO: Can this be created once and shared?
   httplib::Client client(remote_url);
@@ -302,7 +371,10 @@ void HttpServer::HandleGet(const httplib::Request &req,
   }
 
   // forward GET to remote URL
-  auto result = client.Get(req.path, req.params, headers);
+  // Strip the token parameter before forwarding to remote
+  auto params = req.params;
+  params.erase("token");
+  auto result = client.Get(req.path, params, headers);
   if (!result) {
     res.status = 500;
     res.set_content("Could not fetch: '" + req.path + "' from '" + remote_url +
@@ -329,6 +401,10 @@ void HttpServer::HandleGet(const httplib::Request &req,
 
 void HttpServer::HandleInterrupt(const httplib::Request &req,
                                  httplib::Response &res) {
+  if (!ValidateToken(req, res)) {
+    return;
+  }
+
   auto origin = req.get_header_value("Origin");
   if (origin != local_url) {
     res.status = 401;
@@ -369,6 +445,10 @@ void HttpServer::HandleRun(const httplib::Request &req, httplib::Response &res,
 void HttpServer::DoHandleRun(const httplib::Request &req,
                              httplib::Response &res,
                              const httplib::ContentReader &content_reader) {
+  if (!ValidateToken(req, res)) {
+    return;
+  }
+
   auto origin = req.get_header_value("Origin");
   if (origin != local_url) {
     res.status = 401;
@@ -669,6 +749,10 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
 void HttpServer::HandleTokenize(const httplib::Request &req,
                                 httplib::Response &res,
                                 const httplib::ContentReader &content_reader) {
+  if (!ValidateToken(req, res)) {
+    return;
+  }
+
   auto origin = req.get_header_value("Origin");
   if (origin != local_url) {
     res.status = 401;

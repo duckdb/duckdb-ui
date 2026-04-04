@@ -29,13 +29,17 @@ std::string StartUIFunction(ClientContext &context) {
   }
 
   const auto &server = ui::HttpServer::Start(context);
-  const auto local_url = server.LocalUrl();
+  auto url = server.LocalUrl();
+  const auto token = server.GetAuthToken();
+  if (!token.empty()) {
+    url += "?token=" + token;
+  }
 
-  const auto command = StringUtil::Format("%s %s", OPEN_COMMAND, local_url);
+  const auto command = StringUtil::Format("%s %s", OPEN_COMMAND, url);
   return system(command.c_str())
              ? StringUtil::Format("Navigate browser to %s",
-                                  local_url) // open command failed
-             : StringUtil::Format("UI started at %s", local_url);
+                                  url) // open command failed
+             : StringUtil::Format("UI started at %s", url);
 }
 
 std::string StartUIServerFunction(ClientContext &context) {
@@ -46,9 +50,13 @@ std::string StartUIServerFunction(ClientContext &context) {
 
   bool was_started = false;
   const auto &server = ui::HttpServer::Start(context, &was_started);
+  auto url = server.LocalUrl();
+  const auto token = server.GetAuthToken();
+  if (!token.empty()) {
+    url += "?token=" + token;
+  }
   const char *already = was_started ? "already " : "";
-  return StringUtil::Format("UI server %sstarted at %s", already,
-                            server.LocalUrl());
+  return StringUtil::Format("UI server %sstarted at %s", already, url);
 }
 
 std::string StopUIServerFunction(ClientContext &context) {
@@ -62,7 +70,21 @@ std::string GetUIURLFunction(ClientContext &context) {
   }
 
   auto server = ui::HttpServer::GetInstance(context);
-  return server->LocalUrl();
+  auto url = server->LocalUrl();
+  const auto token = server->GetAuthToken();
+  if (!token.empty()) {
+    url += "?token=" + token;
+  }
+  return url;
+}
+
+std::string GetUITokenFunction(ClientContext &context) {
+  if (!ui::HttpServer::Started()) {
+    throw ExecutorException("UI server not started");
+  }
+
+  auto server = ui::HttpServer::GetInstance(context);
+  return server->GetAuthToken();
 }
 
 void IsUIStartedTableFunc(ClientContext &context, TableFunctionInput &input,
@@ -142,10 +164,17 @@ static void LoadInternal(DatabaseInstance &instance) {
         LogicalType::UINTEGER, Value::UINTEGER(def));
   }
 
+  config.AddExtensionOption(
+      UI_ENABLE_TOKEN_AUTH_SETTING_NAME,
+      "Enable token-based authentication for the UI server",
+      LogicalType::BOOLEAN,
+      Value::BOOLEAN(UI_ENABLE_TOKEN_AUTH_SETTING_DEFAULT));
+
   REGISTER_TF("start_ui", StartUIFunction);
   REGISTER_TF("start_ui_server", StartUIServerFunction);
   REGISTER_TF("stop_ui_server", StopUIServerFunction);
   REGISTER_TF("get_ui_url", GetUIURLFunction);
+  REGISTER_TF("get_ui_token", GetUITokenFunction);
   {
     TableFunction tf("ui_is_started", {}, IsUIStartedTableFunc,
                      internal::SingleBoolResultBind,
