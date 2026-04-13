@@ -2,3 +2,118 @@
 # description: test ui extension
 # group: [sql]
 
+require ui
+
+# Verify the ui_local_host setting exists with the default value
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_host';
+----
+ui_local_host	localhost
+
+# Verify the ui_local_host setting can be changed
+statement ok
+SET ui_local_host = '0.0.0.0';
+
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_host';
+----
+ui_local_host	0.0.0.0
+
+# Verify the ui_local_port setting still works
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_port';
+----
+ui_local_port	4213
+
+# Verify the ui_enable_token_auth setting exists with the default value
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_enable_token_auth';
+----
+ui_enable_token_auth	true
+
+# Verify the ui_enable_token_auth setting can be changed
+statement ok
+SET ui_enable_token_auth = false;
+
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_enable_token_auth';
+----
+ui_enable_token_auth	false
+
+# Verify the ui_enable_token_auth setting can be set back to true
+statement ok
+SET ui_enable_token_auth = true;
+
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_enable_token_auth';
+----
+ui_enable_token_auth	true
+
+# Verify the ui_local_host setting can be set to 127.0.0.1
+statement ok
+SET ui_local_host = '127.0.0.1';
+
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_host';
+----
+ui_local_host	127.0.0.1
+
+# Verify the ui_local_host setting can be set back to localhost
+statement ok
+SET ui_local_host = 'localhost';
+
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_host';
+----
+ui_local_host	localhost
+
+# Verify the ui_local_port setting can be changed
+statement ok
+SET ui_local_port = 8080;
+
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_port';
+----
+ui_local_port	8080
+
+# Verify the ui_local_port setting can be set back to default
+statement ok
+SET ui_local_port = 4213;
+
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_local_port';
+----
+ui_local_port	4213
+
+# Verify the ui_polling_interval setting exists with the default value
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_polling_interval';
+----
+ui_polling_interval	284
+
+# Verify the ui_polling_interval setting can be changed
+statement ok
+SET ui_polling_interval = 500;
+
+query II
+SELECT name, value FROM duckdb_settings() WHERE name='ui_polling_interval';
+----
+ui_polling_interval	500
+
+# Verify get_ui_token throws before server is started
+statement error
+SELECT * FROM get_ui_token();
+----
+UI server not started
+
+# Verify get_ui_url throws before server is started
+statement error
+SELECT * FROM get_ui_url();
+----
+UI server not started
+
+# Verify ui_is_started returns false before server is started
+query I
+SELECT * FROM ui_is_started();
+----
+false
