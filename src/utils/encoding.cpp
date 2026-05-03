@@ -39,10 +39,10 @@ std::string DecodeBase64(const std::string &data) {
   std::string decoded_data;
   decoded_data.resize(output_length);
   for (size_t i = 0, j = 0; i < input_length;) {
-    uint32_t sextet_a = data[i] == '=' ? 0 & i++ : k_decoding_table[data[i++]];
-    uint32_t sextet_b = data[i] == '=' ? 0 & i++ : k_decoding_table[data[i++]];
-    uint32_t sextet_c = data[i] == '=' ? 0 & i++ : k_decoding_table[data[i++]];
-    uint32_t sextet_d = data[i] == '=' ? 0 & i++ : k_decoding_table[data[i++]];
+    uint32_t sextet_a = data[i] == '=' ? 0 & i++ : k_decoding_table[static_cast<unsigned char>(data[i++])];
+    uint32_t sextet_b = data[i] == '=' ? 0 & i++ : k_decoding_table[static_cast<unsigned char>(data[i++])];
+    uint32_t sextet_c = data[i] == '=' ? 0 & i++ : k_decoding_table[static_cast<unsigned char>(data[i++])];
+    uint32_t sextet_d = data[i] == '=' ? 0 & i++ : k_decoding_table[static_cast<unsigned char>(data[i++])];
 
     uint32_t triple = (sextet_a << 3 * 6) + (sextet_b << 2 * 6) +
                       (sextet_c << 1 * 6) + (sextet_d << 0 * 6);
