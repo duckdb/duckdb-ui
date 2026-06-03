@@ -72,6 +72,7 @@ jobs:
       duckdb_version: v1.4-andium
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
+      vcpkg_commit: '84bab45d415d22042bd0b9081aea57f362da3f35'
 
   duckdb-lts-build:
     name: Build UI extension for DuckDB v1.4.4 (LTS)
@@ -86,7 +87,7 @@ jobs:
   duckdb-lts-deploy:
     if: ${{ github.repository == 'duckdb/duckdb-ui' && ( startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ) }}
     name: Deploy UI extension for DuckDB v1.4.4 (LTS)
-    needs: duckdb-stable-build
+    needs: duckdb-lts-build
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_deploy.yml@v1.4.4
     secrets: inherit
     with:
