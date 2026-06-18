@@ -6,6 +6,16 @@
 #endif
 #include <type_traits>
 
+// DuckDB's `main` branch (post-1.5) replaced std::string with a dedicated,
+// case-insensitive `duckdb::Identifier` type in catalog/parser/appender APIs.
+// Its runtime-string constructor is explicit, so std::string values must be
+// wrapped at the call site. Older releases don't have the type at all, so we
+// feature-detect the header rather than rely on the (dev-suffixed) version.
+#if defined(__has_include) && __has_include("duckdb/common/identifier.hpp")
+#include "duckdb/common/identifier.hpp"
+#define DUCKDB_HAS_IDENTIFIER 1
+#endif
+
 // TODO we cannot run these checks because they are not defined for DuckDB
 // < 1.4.x #ifndef DUCKDB_MAJOR_VERSION #error "DUCKDB_MAJOR_VERSION is not
 // defined"
@@ -23,6 +33,19 @@
     DUCKDB_PATCH_VERSION >= (patch)))
 
 namespace duckdb {
+
+// Wrap a runtime std::string for catalog/parser/appender APIs that take an
+// `Identifier` on newer DuckDB. On older versions those APIs take std::string,
+// so the value passes through unchanged.
+#ifdef DUCKDB_HAS_IDENTIFIER
+inline Identifier AsCatalogIdentifier(const std::string &name) {
+  return Identifier(name);
+}
+#else
+inline const std::string &AsCatalogIdentifier(const std::string &name) {
+  return name;
+}
+#endif
 
 typedef std::string (*simple_tf_t)(ClientContext &);
 

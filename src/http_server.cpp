@@ -452,7 +452,8 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
         schema_name_option.empty() ? DEFAULT_SCHEMA : schema_name_option;
     context.RunFunctionInTransaction([&] {
       duckdb::ClientData::Get(context).catalog_search_path->Set(
-          {database_name_option, schema_name},
+          {AsCatalogIdentifier(database_name_option),
+           AsCatalogIdentifier(schema_name)},
           duckdb::CatalogSetPathType::SET_SCHEMA);
     });
   }
@@ -576,17 +577,20 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
                                     : result_schema_name_option;
 
       auto result_table_info = make_uniq<duckdb::CreateTableInfo>(
-          result_database_name, result_schema_name, result_table_name);
+          AsCatalogIdentifier(result_database_name),
+          AsCatalogIdentifier(result_schema_name),
+          AsCatalogIdentifier(result_table_name));
       for (idx_t i = 0; i < result->names.size(); i++) {
         result_table_info->columns.AddColumn(
-            ColumnDefinition(result->names[i], result->types[i]));
+            ColumnDefinition(AsCatalogIdentifier(result->names[i]),
+                             result->types[i]));
       }
 
       appender_connection = make_uniq<duckdb::Connection>(*db);
       auto appender_context = appender_connection->context;
       appender_context->RunFunctionInTransaction([&] {
-        auto &catalog = duckdb::Catalog::GetCatalog(*appender_context,
-                                                    result_database_name);
+        auto &catalog = duckdb::Catalog::GetCatalog(
+            *appender_context, AsCatalogIdentifier(result_database_name));
 #if DUCKDB_MAJOR_VERSION == 1 && DUCKDB_MINOR_VERSION < 5
         MetaTransaction::Get(*appender_context)
             .ModifyDatabase(catalog.GetAttached());
@@ -599,8 +603,9 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
       });
 
       appender = make_uniq<duckdb::Appender>(
-          *appender_connection, result_database_name, result_schema_name,
-          result_table_name);
+          *appender_connection, AsCatalogIdentifier(result_database_name),
+          AsCatalogIdentifier(result_schema_name),
+          AsCatalogIdentifier(result_table_name));
     }
 
     // Fetch the chunks and serialize the result.
