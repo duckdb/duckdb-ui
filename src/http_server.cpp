@@ -27,6 +27,85 @@
 namespace duckdb {
 namespace ui {
 
+namespace {
+
+bool HasSqlNull(const LogicalType &type) {
+  switch (type.id()) {
+  case LogicalTypeId::SQLNULL:
+    return true;
+  case LogicalTypeId::LIST:
+    return HasSqlNull(ListType::GetChildType(type));
+  case LogicalTypeId::ARRAY:
+    return HasSqlNull(ArrayType::GetChildType(type));
+  case LogicalTypeId::MAP:
+    return HasSqlNull(MapType::KeyType(type)) ||
+           HasSqlNull(MapType::ValueType(type));
+  case LogicalTypeId::STRUCT:
+    for (idx_t i = 0; i < StructType::GetChildCount(type); i++) {
+      if (HasSqlNull(StructType::GetChildType(type, i))) {
+        return true;
+      }
+    }
+    return false;
+  case LogicalTypeId::UNION:
+    // Not StructType::, which would also hand back the hidden tag member.
+    for (idx_t i = 0; i < UnionType::GetMemberCount(type); i++) {
+      if (HasSqlNull(UnionType::GetMemberType(type, i))) {
+        return true;
+      }
+    }
+    return false;
+  default:
+    return false;
+  }
+}
+
+// DuckDB 1.5.x resolved a bare NULL literal to INTEGER; 2.0.0 leaves it typed
+// SQLNULL. The app's copy of LogicalTypeId starts at BOOLEAN and has no entry
+// for SQLNULL, so such a column reaches its readVector as "unrecognized type
+// id: 1" -- and the app generates these itself, building `SELECT NULL AS <col>`
+// for the columns it does not have values for. A SQLNULL vector is physically
+// INT32 and serializes byte-for-byte like an all-null INTEGER, so reporting
+// INTEGER sends exactly what 1.5.x sent. Subtrees without SQLNULL are returned
+// untouched, so aliases and type modifiers survive.
+LogicalType WithoutSqlNull(const LogicalType &type) {
+  if (!HasSqlNull(type)) {
+    return type;
+  }
+  switch (type.id()) {
+  case LogicalTypeId::SQLNULL:
+    return LogicalType::INTEGER;
+  case LogicalTypeId::LIST:
+    return LogicalType::LIST(WithoutSqlNull(ListType::GetChildType(type)));
+  case LogicalTypeId::ARRAY:
+    return LogicalType::ARRAY(WithoutSqlNull(ArrayType::GetChildType(type)),
+                              ArrayType::GetSize(type));
+  case LogicalTypeId::MAP:
+    return LogicalType::MAP(WithoutSqlNull(MapType::KeyType(type)),
+                            WithoutSqlNull(MapType::ValueType(type)));
+  case LogicalTypeId::STRUCT: {
+    child_list_t<LogicalType> children;
+    for (idx_t i = 0; i < StructType::GetChildCount(type); i++) {
+      children.emplace_back(StructType::GetChildName(type, i),
+                            WithoutSqlNull(StructType::GetChildType(type, i)));
+    }
+    return LogicalType::STRUCT(std::move(children));
+  }
+  case LogicalTypeId::UNION: {
+    child_list_t<LogicalType> members;
+    for (idx_t i = 0; i < UnionType::GetMemberCount(type); i++) {
+      members.emplace_back(UnionType::GetMemberName(type, i),
+                           WithoutSqlNull(UnionType::GetMemberType(type, i)));
+    }
+    return LogicalType::UNION(std::move(members));
+  }
+  default:
+    return type;
+  }
+}
+
+} // namespace
+
 unique_ptr<HttpServer> HttpServer::server_instance;
 
 HttpServer *HttpServer::GetInstance(ClientContext &context) {
@@ -619,8 +698,12 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
 
     // Fetch the chunks and serialize the result.
     SuccessResult success_result;
+    auto column_types = std::move(result->types);
+    for (auto &column_type : column_types) {
+      column_type = WithoutSqlNull(column_type);
+    }
     success_result.column_names_and_types = {std::move(result->names),
-                                             std::move(result->types)};
+                                             std::move(column_types)};
 
     auto row_limit = std::max(result_row_limit, result_table_row_limit);
     auto rows_fetched = 0;
