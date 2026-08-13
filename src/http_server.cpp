@@ -697,6 +697,15 @@ void HttpServer::HandleTokenize(const httplib::Request &req,
   result.types.reserve(tokens.size());
 
   for (auto token : tokens) {
+    // DuckDB 2.0.0 appends a token starting one past the end of the input,
+    // which 1.5.x did not (duckdb/duckdb#24742). No such character exists, and
+    // the app's statement splitter is driven by these offsets: the phantom
+    // reopens a statement after the closing semicolon has already ended one,
+    // so the cell is run twice. Visible as DDL that "already exists" the first
+    // time you run it. Drop tokens that do not point at a character.
+    if (token.start >= content.size()) {
+      continue;
+    }
     result.offsets.push_back(token.start);
     result.types.push_back(token.type);
   }
