@@ -30,6 +30,8 @@ jobs:
     with:
       ci_tools_version: main
       duckdb_version: main
+      # Temporary override; remove when extension-ci-tools updates its default.
+      vcpkg_commit: 'cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3' # Release 2026.06.24
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
@@ -39,6 +41,7 @@ jobs:
     with:
       ci_tools_version: v1.5-variegata
       duckdb_version: v1.5-variegata
+      vcpkg_commit: 'cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3' # Release 2026.06.24
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
@@ -48,6 +51,7 @@ jobs:
     with:
       ci_tools_version: v1.5-variegata
       duckdb_version: v1.5.5
+      vcpkg_commit: 'cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3' # Release 2026.06.24
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
@@ -70,9 +74,9 @@ jobs:
     with:
       ci_tools_version: v1.4-andium
       duckdb_version: v1.4-andium
+      vcpkg_commit: 'cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3' # Release 2026.06.24
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
-      vcpkg_commit: '84bab45d415d22042bd0b9081aea57f362da3f35'
 
   duckdb-lts-build:
     name: Build UI extension for DuckDB v1.4.5 (LTS)
@@ -80,9 +84,9 @@ jobs:
     with:
       ci_tools_version: v1.4-andium
       duckdb_version: v1.4.5
+      vcpkg_commit: 'cd61e1e26a038e82d6550a3ebbe0fbbfe7da78e3' # Release 2026.06.24
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
-      vcpkg_commit: '84bab45d415d22042bd0b9081aea57f362da3f35'
 
   duckdb-lts-deploy:
     if: ${{ github.repository == 'duckdb/duckdb-ui' && ( startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ) }}
