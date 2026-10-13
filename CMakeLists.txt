@@ -29,9 +29,33 @@ set(EXTENSION_SOURCES
     src/utils/serialization.cpp
     src/watcher.cpp)
 
+# DuckDB 2.x treats the DUCKDB_VERSION environment variable as an explicit
+# version. extension-ci-tools sets it to the requested ref (e.g. "main"), which
+# doesn't parse as vX.Y.Z and leaves the version variables empty. Fall back to
+# the release version file DuckDB uses for dev builds.
+if("${DUCKDB_MAJOR_VERSION}" STREQUAL ""
+   AND EXISTS "${CMAKE_SOURCE_DIR}/scripts/ci/release_version.txt")
+  file(READ "${CMAKE_SOURCE_DIR}/scripts/ci/release_version.txt"
+       UI_DUCKDB_RELEASE_VERSION)
+  string(STRIP "${UI_DUCKDB_RELEASE_VERSION}" UI_DUCKDB_RELEASE_VERSION)
+  if(UI_DUCKDB_RELEASE_VERSION MATCHES "^([0-9]+)[.]([0-9]+)$")
+    set(DUCKDB_MAJOR_VERSION "${CMAKE_MATCH_1}")
+    set(DUCKDB_MINOR_VERSION "${CMAKE_MATCH_2}")
+    set(DUCKDB_PATCH_VERSION "0")
+  endif()
+endif()
+if("${DUCKDB_MAJOR_VERSION}" STREQUAL "")
+  message(FATAL_ERROR "Unable to determine the DuckDB version")
+endif()
+
 add_definitions(-DDUCKDB_MAJOR_VERSION=${DUCKDB_MAJOR_VERSION})
 add_definitions(-DDUCKDB_MINOR_VERSION=${DUCKDB_MINOR_VERSION})
 add_definitions(-DDUCKDB_PATCH_VERSION=${DUCKDB_PATCH_VERSION})
+
+# Newer httplib (bundled with DuckDB 2.x) loads root certificates from the macOS
+# Keychain by default, which requires linking the Security and CoreFoundation
+# frameworks. Keep using OpenSSL's default certificate paths, as before.
+add_definitions(-DCPPHTTPLIB_DISABLE_MACOSX_AUTOMATIC_ROOT_CERTIFICATES)
 
 find_package(Git)
 if(NOT Git_FOUND)
