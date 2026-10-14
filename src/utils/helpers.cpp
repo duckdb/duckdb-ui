@@ -18,7 +18,7 @@ bool ShouldRun(TableFunctionInput &input) {
 unique_ptr<FunctionData>
 SingleStringResultBind(ClientContext &, TableFunctionBindInput &,
                        vector<LogicalType> &out_types,
-                       vector<std::string> &out_names) {
+                       bind_names_t &out_names) {
   out_names.emplace_back("result");
   out_types.emplace_back(LogicalType::VARCHAR);
   return nullptr;
@@ -27,7 +27,7 @@ SingleStringResultBind(ClientContext &, TableFunctionBindInput &,
 unique_ptr<FunctionData> SingleBoolResultBind(ClientContext &,
                                               TableFunctionBindInput &,
                                               vector<LogicalType> &out_types,
-                                              vector<std::string> &out_names) {
+                                              bind_names_t &out_names) {
   out_names.emplace_back("result");
   out_types.emplace_back(LogicalType::BOOLEAN);
   return nullptr;

@@ -41,10 +41,20 @@ namespace duckdb {
 inline Identifier AsCatalogIdentifier(const std::string &name) {
   return Identifier(name);
 }
+inline const Identifier &AsCatalogIdentifier(const Identifier &name) {
+  return name;
+}
 #else
 inline const std::string &AsCatalogIdentifier(const std::string &name) {
   return name;
 }
+#endif
+
+// DuckDB 2.0 table function bind callbacks return column names as Identifiers.
+#if DUCKDB_VERSION_AT_LEAST(2, 0, 0)
+typedef vector<Identifier> bind_names_t;
+#else
+typedef vector<std::string> bind_names_t;
 #endif
 
 typedef std::string (*simple_tf_t)(ClientContext &);
@@ -64,12 +74,12 @@ namespace internal {
 unique_ptr<FunctionData> SingleBoolResultBind(ClientContext &,
                                               TableFunctionBindInput &,
                                               vector<LogicalType> &out_types,
-                                              vector<std::string> &out_names);
+                                              bind_names_t &out_names);
 
 unique_ptr<FunctionData> SingleStringResultBind(ClientContext &,
                                                 TableFunctionBindInput &,
                                                 vector<LogicalType> &,
-                                                vector<std::string> &);
+                                                bind_names_t &);
 
 bool ShouldRun(TableFunctionInput &input);
 
