@@ -1,5 +1,6 @@
 import {
   DuckDBStructType,
+  GEOMETRY,
   INTEGER,
   SQLNULL,
   STRUCT,
@@ -47,6 +48,34 @@ suite('duckDBTypeFromTypeIdAndInfo', () => {
         },
       }),
     ).toStrictEqual(new DuckDBStructType(['', ''], [INTEGER, VARCHAR]));
+  });
+  test('TUPLE', () => {
+    // Serialized like an unnamed STRUCT.
+    expect(
+      duckDBTypeFromTypeIdAndInfo({
+        id: LogicalTypeId.TUPLE,
+        typeInfo: {
+          kind: 'struct',
+          childTypes: [
+            ['', { id: LogicalTypeId.INTEGER }],
+            ['', { id: LogicalTypeId.VARCHAR }],
+          ],
+        },
+      }),
+    ).toStrictEqual(new DuckDBStructType(['', ''], [INTEGER, VARCHAR]));
+  });
+  test('GEOMETRY', () => {
+    expect(duckDBTypeFromTypeIdAndInfo({ id: LogicalTypeId.GEOMETRY })).toBe(
+      GEOMETRY,
+    );
+  });
+  test('GEOMETRY with coordinate reference system', () => {
+    expect(
+      duckDBTypeFromTypeIdAndInfo({
+        id: LogicalTypeId.GEOMETRY,
+        typeInfo: { kind: 'geo', crs: 'OGC:CRS84' },
+      }),
+    ).toBe(GEOMETRY);
   });
   test('SQLNULL', () => {
     expect(duckDBTypeFromTypeIdAndInfo({ id: LogicalTypeId.SQLNULL })).toBe(

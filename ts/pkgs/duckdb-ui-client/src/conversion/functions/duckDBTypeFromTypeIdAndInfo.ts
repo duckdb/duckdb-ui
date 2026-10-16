@@ -32,6 +32,7 @@ import {
   DuckDBUUIDType,
   DuckDBVarCharType,
   ENUM,
+  GEOMETRY,
   JSONType,
   LIST,
   MAP,
@@ -102,6 +103,10 @@ export function duckDBTypeFromTypeIdAndInfo(
       return DuckDBVarCharType.create(alias);
     case LogicalTypeId.BLOB:
       return DuckDBBlobType.create(alias);
+    case LogicalTypeId.GEOMETRY:
+      // Matches how DuckDB before 1.5 (and later DuckDB targeting older storage) serializes geometry: as a BLOB
+      // aliased GEOMETRY. Any coordinate reference system is not reflected in the type.
+      return alias ? DuckDBBlobType.create(alias) : GEOMETRY;
 
     case LogicalTypeId.INTERVAL:
       return DuckDBIntervalType.create(alias);
@@ -134,7 +139,8 @@ export function duckDBTypeFromTypeIdAndInfo(
     case LogicalTypeId.UUID:
       return DuckDBUUIDType.create(alias);
 
-    case LogicalTypeId.STRUCT: {
+    case LogicalTypeId.STRUCT:
+    case LogicalTypeId.TUPLE: {
       const { childTypes } = getStructTypeInfo(typeInfo);
       // Built from arrays rather than a record, because entry names aren't unique in an unnamed struct (e.g.
       // `row(1, 'a')`), where every name is empty.

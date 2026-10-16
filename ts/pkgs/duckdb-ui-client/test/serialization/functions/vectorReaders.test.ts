@@ -250,6 +250,36 @@ suite('readVector', () => {
       'string length data has byte length 3, which is not a multiple of 4',
     );
   });
+  test('GEOMETRY with storage format (DuckDB 2.0+)', () => {
+    const d = deserializer([
+      ...field(99),
+      1,
+      ...field(100),
+      0,
+      ...field(102),
+      1,
+      ...blob([1, 2, 3]),
+      ...OBJECT_END,
+    ]);
+    expect(readVector(d, { id: LogicalTypeId.GEOMETRY })).toMatchObject({
+      allValid: 0,
+      kind: 'datalist',
+      data: [new DataView(new Uint8Array([1, 2, 3]).buffer)],
+    });
+  });
+  test('GEOMETRY without storage format', () => {
+    const d = deserializer([
+      ...field(100),
+      0,
+      ...field(102),
+      1,
+      ...blob([1, 2, 3]),
+      ...OBJECT_END,
+    ]);
+    expect(readVector(d, { id: LogicalTypeId.GEOMETRY })).toMatchObject({
+      kind: 'datalist',
+    });
+  });
   test('SQLNULL', () => {
     // A SQLNULL vector is physically INT32: a validity mask and 4 bytes of data per row.
     const d = deserializer([

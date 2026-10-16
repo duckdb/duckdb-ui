@@ -34,10 +34,12 @@ export const LogicalTypeId = {
   UHUGEINT: 49,
   HUGEINT: 50,
   UUID: 54,
+  GEOMETRY: 60,
   STRUCT: 100,
   LIST: 101,
   MAP: 102,
   ENUM: 104,
   UNION: 107,
   ARRAY: 108,
+  TUPLE: 110,
 };

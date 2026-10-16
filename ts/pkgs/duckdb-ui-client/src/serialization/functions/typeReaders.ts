@@ -23,6 +23,15 @@ export function readStructEntryList(
   return readList(deserializer, readStructEntry);
 }
 
+/** See CoordinateReferenceSystem::Deserialize in https://github.com/duckdb/duckdb/blob/main/src/common/types/geometry_crs.cpp */
+export function readCoordinateReferenceSystem(
+  deserializer: BinaryDeserializer,
+): string {
+  const definition = deserializer.readPropertyWithDefault(100, readString, '');
+  deserializer.expectObjectEnd();
+  return definition;
+}
+
 /** See ExtraTypeInfo::Deserialize in https://github.com/duckdb/duckdb/blob/main/src/storage/serialization/serialize_types.cpp */
 export function readTypeInfo(deserializer: BinaryDeserializer): TypeInfo {
   const typeInfoType = deserializer.readProperty(100, readUint8);
@@ -112,6 +121,19 @@ export function readTypeInfo(deserializer: BinaryDeserializer): TypeInfo {
           kind: 'array',
           childType,
           size,
+        };
+      }
+      break;
+    case 13: // GEO_TYPE_INFO
+      {
+        const crs = deserializer.readProperty(
+          200,
+          readCoordinateReferenceSystem,
+        );
+        typeInfo = {
+          ...baseInfo,
+          kind: 'geo',
+          crs,
         };
       }
       break;

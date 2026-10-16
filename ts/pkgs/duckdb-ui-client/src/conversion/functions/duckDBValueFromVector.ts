@@ -141,7 +141,8 @@ export function duckDBValueFromVector(
     case LogicalTypeId.VARCHAR:
       return getStringVector(vector).data[rowIndex];
 
-    case LogicalTypeId.BLOB: {
+    case LogicalTypeId.BLOB:
+    case LogicalTypeId.GEOMETRY: {
       const dv = getDataListVector(vector).data[rowIndex];
       return new DuckDBBlobValue(
         new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength),
@@ -198,7 +199,8 @@ export function duckDBValueFromVector(
         getInt128(getDataVector(vector).data, rowIndex * 16),
       );
 
-    case LogicalTypeId.STRUCT: {
+    case LogicalTypeId.STRUCT:
+    case LogicalTypeId.TUPLE: {
       const { childTypes } = getStructTypeInfo(typeInfo);
       const { data } = getVectorListVector(vector);
       return new DuckDBStructValue(

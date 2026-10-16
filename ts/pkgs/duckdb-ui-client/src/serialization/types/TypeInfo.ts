@@ -41,6 +41,12 @@ export interface ArrayTypeInfo extends BaseTypeInfo {
   size: number;
 }
 
+export interface GeoTypeInfo extends BaseTypeInfo {
+  kind: 'geo';
+  /** The coordinate reference system definition, e.g. 'OGC:CRS84'. Empty if none. */
+  crs: string;
+}
+
 /** See https://github.com/duckdb/duckdb/blob/main/src/include/duckdb/common/extra_type_info.hpp */
 export type TypeInfo =
   | GenericTypeInfo
@@ -49,7 +55,8 @@ export type TypeInfo =
   | ListTypeInfo
   | StructTypeInfo
   | EnumTypeInfo
-  | ArrayTypeInfo;
+  | ArrayTypeInfo
+  | GeoTypeInfo;
 
 export interface TypeIdAndInfo {
   /** LogicalTypeId */

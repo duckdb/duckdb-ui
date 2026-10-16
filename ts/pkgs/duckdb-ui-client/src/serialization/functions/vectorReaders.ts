@@ -80,6 +80,11 @@ export function readVector(
   deserializer: BinaryDeserializer,
   type: TypeIdAndInfo,
 ): Vector {
+  if (type.id === LogicalTypeId.GEOMETRY) {
+    // The geometry storage format. Written whenever the type is serialized as GEOMETRY (rather than as a legacy
+    // GEOMETRY-aliased BLOB), in which case the data is always WKB.
+    deserializer.readPropertyWithDefault(99, readUint8, null);
+  }
   const allValid = deserializer.readProperty(100, readUint8);
   const validity = allValid ? deserializer.readProperty(101, readData) : null;
   const baseVector: BaseVector = { allValid, validity };
@@ -139,6 +144,7 @@ export function readVector(
       }
       break;
     case LogicalTypeId.BLOB:
+    case LogicalTypeId.GEOMETRY:
     case LogicalTypeId.BIT:
     case LogicalTypeId.BIGNUM:
       {
@@ -151,15 +157,16 @@ export function readVector(
       }
       break;
     case LogicalTypeId.STRUCT:
+    case LogicalTypeId.TUPLE:
     case LogicalTypeId.UNION:
       {
         const { typeInfo } = type;
         if (!typeInfo) {
-          throw new Error(`STRUCT or UNION without typeInfo`);
+          throw new Error(`STRUCT, TUPLE or UNION without typeInfo`);
         }
         if (typeInfo.kind !== 'struct') {
           throw new Error(
-            `STRUCT or UNION with wrong typeInfo kind: ${typeInfo.kind}`,
+            `STRUCT, TUPLE or UNION with wrong typeInfo kind: ${typeInfo.kind}`,
           );
         }
         const types = typeInfo.childTypes.map((e) => e[1]);

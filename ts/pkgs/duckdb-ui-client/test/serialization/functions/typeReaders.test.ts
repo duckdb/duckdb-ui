@@ -85,6 +85,34 @@ suite('readTypeInfo', () => {
       collation: 'NOCASE',
     });
   });
+  test('geo type info with coordinate reference system', () => {
+    expect(
+      readTypeInfo(
+        deserializer(
+          typeInfoBytes(13, [
+            ...field(200),
+            ...field(100),
+            ...string('OGC:CRS84'),
+            ...OBJECT_END,
+          ]),
+        ),
+      ),
+    ).toEqual({
+      kind: 'geo',
+      crs: 'OGC:CRS84',
+    });
+  });
+  test('geo type info with empty coordinate reference system', () => {
+    // An empty definition is not written, since it's the default.
+    expect(
+      readTypeInfo(
+        deserializer(typeInfoBytes(13, [...field(200), ...OBJECT_END])),
+      ),
+    ).toEqual({
+      kind: 'geo',
+      crs: '',
+    });
+  });
   test('unsupported type info', () => {
     // AGGREGATE_STATE_TYPE_INFO is not yet supported.
     expect(() => readTypeInfo(deserializer(typeInfoBytes(8, [])))).toThrowError(
