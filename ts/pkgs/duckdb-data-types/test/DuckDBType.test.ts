@@ -951,10 +951,10 @@ suite('DuckDBBigNumType', () => {
 
 suite('DuckDBSQLNullType', () => {
   test('toString', () => {
-    expect(SQLNULL.toString()).toBe('SQLNULL');
+    expect(SQLNULL.toString()).toBe('NULL');
   });
   test('toString short', () => {
-    expect(SQLNULL.toString({ short: true })).toBe('SQLNULL');
+    expect(SQLNULL.toString({ short: true })).toBe('NULL');
   });
   test('toString with alias', () => {
     expect(DuckDBSQLNullType.create('mysqlnull').toString()).toBe('mysqlnull');

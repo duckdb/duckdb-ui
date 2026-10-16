@@ -62,15 +62,24 @@ export class BinaryDeserializer {
     return this.reader.readUint8();
   }
 
+  /**
+   * Read an unsigned LEB128 varint. Uses arithmetic rather than bitwise operators, which are limited to 32 bits.
+   * Throws if the value can't be represented exactly as a number.
+   */
   public readVarInt() {
     let result = 0;
     let byte = 0;
-    let shift = 0;
+    let multiplier = 1;
     do {
       byte = this.reader.readUint8();
-      result |= (byte & 0x7f) << shift;
-      shift += 7;
+      result += (byte & 0x7f) * multiplier;
+      multiplier *= 0x80;
     } while (byte & 0x80);
+    if (!Number.isSafeInteger(result)) {
+      throw new Error(
+        `varint exceeds Number.MAX_SAFE_INTEGER (offset=${this.reader.getOffset()})`,
+      );
+    }
     return result;
   }
 

@@ -65,6 +65,10 @@ export function duckDBValueFromVector(
 
   const { id, typeInfo } = typeIdAndInfo;
   switch (id) {
+    // Every row of a SQLNULL vector is invalid, so this is unreachable in practice.
+    case LogicalTypeId.SQLNULL:
+      return null;
+
     case LogicalTypeId.BOOLEAN:
       return getBoolean(getDataVector(vector).data, rowIndex);
 

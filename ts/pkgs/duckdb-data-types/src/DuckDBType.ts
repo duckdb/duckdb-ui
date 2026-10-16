@@ -919,6 +919,13 @@ export class DuckDBSQLNullType extends BaseDuckDBType<DuckDBTypeId.SQLNULL> {
   public static create(alias?: string): DuckDBSQLNullType {
     return alias ? new DuckDBSQLNullType(alias) : DuckDBSQLNullType.instance;
   }
+  /**
+   * DuckDB names this type "NULL" (e.g. `select typeof(NULL)` returns `"NULL"`), quoted in SQL because NULL is a
+   * keyword. For display, it's shown unquoted.
+   */
+  public toString(_options?: DuckDBTypeToStringOptions): string {
+    return this.alias ?? 'NULL';
+  }
 }
 export const SQLNULL = DuckDBSQLNullType.instance;
 

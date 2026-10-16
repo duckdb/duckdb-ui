@@ -21,6 +21,29 @@ suite('BinaryDeserializer', () => {
     );
     expect(deserializer.readVarInt()).toBe((3 << 14) | (2 << 7) | 1);
   });
+  test('read varint of 2^31 and above', () => {
+    const deserializer = new BinaryDeserializer(
+      new BinaryStreamReader(
+        makeBuffer([
+          0x80, 0x80, 0x80, 0x80, 0x08, 0x85, 0x80, 0x80, 0x80, 0x10, 0xff,
+          0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0f,
+        ]),
+      ),
+    );
+    expect(deserializer.readVarInt()).toBe(2 ** 31);
+    expect(deserializer.readVarInt()).toBe(2 ** 32 + 5);
+    expect(deserializer.readVarInt()).toBe(Number.MAX_SAFE_INTEGER);
+  });
+  test('read varint too large for a number', () => {
+    const deserializer = new BinaryDeserializer(
+      new BinaryStreamReader(
+        makeBuffer([0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x10]),
+      ),
+    );
+    expect(() => deserializer.readVarInt()).toThrow(
+      'varint exceeds Number.MAX_SAFE_INTEGER',
+    );
+  });
   test('read nullable', () => {
     const deserializer = new BinaryDeserializer(
       new BinaryStreamReader(makeBuffer([0, 1, 17])),

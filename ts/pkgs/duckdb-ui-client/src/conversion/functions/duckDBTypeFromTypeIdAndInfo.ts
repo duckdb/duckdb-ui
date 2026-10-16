@@ -13,6 +13,7 @@ import {
   DuckDBIntegerType,
   DuckDBIntervalType,
   DuckDBSmallIntType,
+  DuckDBSQLNullType,
   DuckDBTimestampMillisecondsType,
   DuckDBTimestampNanosecondsType,
   DuckDBTimestampSecondsType,
@@ -54,6 +55,9 @@ export function duckDBTypeFromTypeIdAndInfo(
   const { id, typeInfo } = typeIdAndInfo;
   const alias = typeInfo?.alias;
   switch (id) {
+    case LogicalTypeId.SQLNULL:
+      return DuckDBSQLNullType.create(alias);
+
     case LogicalTypeId.BOOLEAN:
       return DuckDBBooleanType.create(alias);
 

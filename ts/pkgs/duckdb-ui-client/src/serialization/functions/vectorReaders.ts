@@ -1,4 +1,5 @@
 import { BinaryDeserializer } from '../classes/BinaryDeserializer.js';
+import { isRowValid } from '../../conversion/functions/isRowValid.js';
 import { LogicalTypeId } from '../constants/LogicalTypeId.js';
 import { TypeIdAndInfo } from '../types/TypeInfo.js';
 import { BaseVector, ListEntry, Vector } from '../types/Vector.js';
@@ -24,6 +25,56 @@ export function readListEntryList(
   return readList(deserializer, readListEntry);
 }
 
+const decoder = new TextDecoder();
+
+/**
+ * Read the string data of a VARCHAR vector serialized in the DuckDB 2.0+ format: the total byte length (field 107),
+ * a blob of one little-endian uint32 length per row (field 108), and a blob of the concatenated bytes of the valid
+ * strings (field 109). Mirrors Vector::Deserialize: invalid rows consume no bytes, whatever their length, and are
+ * decoded as empty strings.
+ */
+export function readStringBlobs(
+  deserializer: BinaryDeserializer,
+  validity: DataView | null,
+): string[] {
+  const byteDataLength = deserializer.readProperty(107, readVarInt);
+  const lengthData = deserializer.readProperty(108, readData);
+  const byteData = deserializer.readProperty(109, readData);
+  if (lengthData.byteLength % 4 !== 0) {
+    throw new Error(
+      `string length data has byte length ${lengthData.byteLength}, which is not a multiple of 4`,
+    );
+  }
+  if (byteData.byteLength !== byteDataLength) {
+    throw new Error(
+      `string byte data has byte length ${byteData.byteLength} but expected ${byteDataLength}`,
+    );
+  }
+  const bytes = new Uint8Array(
+    byteData.buffer,
+    byteData.byteOffset,
+    byteData.byteLength,
+  );
+  const count = lengthData.byteLength / 4;
+  const strings: string[] = [];
+  let position = 0;
+  for (let i = 0; i < count; i++) {
+    if (!isRowValid(validity, i)) {
+      strings.push('');
+      continue;
+    }
+    const length = lengthData.getUint32(i * 4, true);
+    if (length > byteDataLength - position) {
+      throw new Error(
+        `string lengths exceed byte data length ${byteDataLength}`,
+      );
+    }
+    strings.push(decoder.decode(bytes.subarray(position, position + length)));
+    position += length;
+  }
+  return strings;
+}
+
 /** See Vector::Deserialize in https://github.com/duckdb/duckdb/blob/main/src/common/types/vector.cpp */
 export function readVector(
   deserializer: BinaryDeserializer,
@@ -34,6 +85,8 @@ export function readVector(
   const baseVector: BaseVector = { allValid, validity };
   let vector: Vector | undefined;
   switch (type.id) {
+    // SQLNULL is physically INT32, so it is serialized like INTEGER.
+    case LogicalTypeId.SQLNULL:
     case LogicalTypeId.BOOLEAN:
     case LogicalTypeId.TINYINT:
     case LogicalTypeId.SMALLINT:
@@ -71,7 +124,13 @@ export function readVector(
     case LogicalTypeId.CHAR:
     case LogicalTypeId.VARCHAR:
       {
-        const data = deserializer.readProperty(102, readStringList);
+        // DuckDB before 2.0 serializes strings as a list (field 102); 2.0+ uses two blobs (fields 107-109).
+        const data =
+          deserializer.readPropertyWithDefault<string[] | null>(
+            102,
+            readStringList,
+            null,
+          ) ?? readStringBlobs(deserializer, validity);
         vector = {
           ...baseVector,
           kind: 'string',

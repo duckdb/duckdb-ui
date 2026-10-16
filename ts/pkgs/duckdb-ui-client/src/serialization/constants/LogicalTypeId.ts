@@ -4,6 +4,7 @@
  * See LogicalTypeId in https://github.com/duckdb/duckdb/blob/main/src/include/duckdb/common/types.hpp
  */
 export const LogicalTypeId = {
+  SQLNULL: 1,
   BOOLEAN: 10,
   TINYINT: 11,
   SMALLINT: 12,

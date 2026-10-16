@@ -54,6 +54,8 @@ import {
 } from './extensionTypes.js';
 
 const simpleTypeMap: Record<string, DuckDBType> = {
+  // DuckDB names the SQLNULL type "NULL", quoted because NULL is a keyword.
+  '"NULL"': SQLNULL,
   BIGINT: BIGINT,
   BIGNUM: BIGNUM,
   BIT: BIT,
@@ -71,6 +73,7 @@ const simpleTypeMap: Record<string, DuckDBType> = {
   INTERVAL: INTERVAL,
   JSON: JSONType,
   LINESTRING_2D: LINESTRING_2D,
+  NULL: SQLNULL,
   POINT_2D: POINT_2D,
   POINT_3D: POINT_3D,
   POINT_4D: POINT_4D,
