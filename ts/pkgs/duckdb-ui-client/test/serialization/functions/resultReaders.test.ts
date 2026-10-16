@@ -83,6 +83,26 @@ function decode(hex: string): DecodedResult {
 const nullType = { 'v1.5.6': 'INTEGER', main: 'NULL' };
 
 suite('readQueryResult', () => {
+  test(`select row(1, 'a') as r (v1.5.6)`, () => {
+    // An unnamed struct: both entry names are empty.
+    expect(
+      decode(
+        '64000165006400010172650001640064650001640005c80002000000010064000dffffffff0000000100640019ffffffffffffffffffff66000164000165000164000067000264000066000401000000ffff6400006600010161ffffffffffffffff',
+      ),
+    ).toStrictEqual({
+      names: ['r'],
+      types: ['STRUCT("" INTEGER, "" VARCHAR)'],
+      rows: [
+        [
+          new DuckDBStructValue([
+            { key: '', value: 1 },
+            { key: '', value: 'a' },
+          ]),
+        ],
+      ],
+    });
+  });
+
   for (const version of ['v1.5.6', 'main'] as const) {
     suite(version, () => {
       const response = responses[version];

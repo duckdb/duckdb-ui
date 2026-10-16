@@ -14,6 +14,7 @@ import {
   DuckDBIntervalType,
   DuckDBSmallIntType,
   DuckDBSQLNullType,
+  DuckDBStructType,
   DuckDBTimestampMillisecondsType,
   DuckDBTimestampNanosecondsType,
   DuckDBTimestampSecondsType,
@@ -34,7 +35,6 @@ import {
   JSONType,
   LIST,
   MAP,
-  STRUCT,
   UNION,
 } from '@duckdb/data-types';
 import { LogicalTypeId } from '../../serialization/constants/LogicalTypeId.js';
@@ -136,11 +136,13 @@ export function duckDBTypeFromTypeIdAndInfo(
 
     case LogicalTypeId.STRUCT: {
       const { childTypes } = getStructTypeInfo(typeInfo);
-      const entries: Record<string, DuckDBType> = {};
-      for (const [key, valueTypeIdAndInfo] of childTypes) {
-        entries[key] = duckDBTypeFromTypeIdAndInfo(valueTypeIdAndInfo);
-      }
-      return STRUCT(entries, alias);
+      // Built from arrays rather than a record, because entry names aren't unique in an unnamed struct (e.g.
+      // `row(1, 'a')`), where every name is empty.
+      return new DuckDBStructType(
+        childTypes.map(([name]) => name),
+        childTypes.map(([, type]) => duckDBTypeFromTypeIdAndInfo(type)),
+        alias,
+      );
     }
 
     case LogicalTypeId.LIST: {
