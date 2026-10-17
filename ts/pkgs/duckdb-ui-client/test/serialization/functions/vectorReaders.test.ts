@@ -280,6 +280,59 @@ suite('readVector', () => {
       kind: 'datalist',
     });
   });
+  test('BLOB in list format (DuckDB < 2.0)', () => {
+    const d = deserializer([
+      ...validityBytes(),
+      ...field(102),
+      2,
+      ...blob([0xaa, 0x00]),
+      ...blob([]),
+      ...OBJECT_END,
+    ]);
+    const vector = readVector(d, { id: LogicalTypeId.BLOB });
+    expect(vector.kind).toBe('datalist');
+    const data = (vector as { data: DataView[] }).data;
+    expect(
+      data.map((dv) =>
+        Array.from(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength)),
+      ),
+    ).toStrictEqual([[0xaa, 0x00], []]);
+  });
+  for (const id of [
+    LogicalTypeId.BLOB,
+    LogicalTypeId.BIT,
+    LogicalTypeId.BIGNUM,
+  ]) {
+    test(`type ${id} in two-blob format (DuckDB 2.0+) with invalid rows`, () => {
+      const d = deserializer(
+        stringBlobsVectorBytes([3, 9, 0, 1], [0xaa, 0x00, 0xff, 0x7f], {
+          valid: [true, false, true, true],
+        }),
+      );
+      const vector = readVector(d, { id });
+      expect(vector.kind).toBe('datalist');
+      const data = (vector as { data: DataView[] }).data;
+      expect(
+        data.map((dv) =>
+          Array.from(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength)),
+        ),
+      ).toStrictEqual([[0xaa, 0x00, 0xff], [], [], [0x7f]]);
+    });
+  }
+  test('STRUCT with no entries', () => {
+    const d = deserializer([
+      ...validityBytes(),
+      ...field(103),
+      0,
+      ...OBJECT_END,
+    ]);
+    expect(
+      readVector(d, {
+        id: LogicalTypeId.STRUCT,
+        typeInfo: { kind: 'struct', childTypes: [] },
+      }),
+    ).toMatchObject({ kind: 'vectorlist', data: [] });
+  });
   test('SQLNULL', () => {
     // A SQLNULL vector is physically INT32: a validity mask and 4 bytes of data per row.
     const d = deserializer([

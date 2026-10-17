@@ -455,3 +455,101 @@ suite('readQueryResult: extension types (duckdb/duckdb-ui#252)', () => {
     });
   }
 });
+
+/** Decodes a response to its type strings and its values as strings, for types whose value classes aren't exported. */
+function decodeToStrings(hex: string): { types: string[]; rows: string[][] } {
+  const { types, rows } = decode(hex);
+  return {
+    types,
+    rows: rows.map((row) =>
+      row.map((value) => (value === null ? 'NULL' : String(value))),
+    ),
+  };
+}
+
+/**
+ * BLOB, BIT and BIGNUM vectors are physically strings, so DuckDB 2.0 serializes them in the two-blob format, like
+ * VARCHAR. Captured from the ui extension built against each version.
+ */
+const blobResponses = {
+  blobs: {
+    'v1.5.6':
+      '6400016500640001016265000164001affffffff660001640004650001640001650008fdffffffffffffff66000403aa00ff01800003616263ffffffffffff',
+    main: '6400016500640001016265000164001affffffff660001640004650001640001650008fdffffffffffffff6b00066c0010030000000000000000000000030000006d0006aa00ff616263ffffffffffff',
+  },
+  bitAndBignum: {
+    'v1.5.6':
+      '640001650064000302627402626e026e62650003640024ffff640027ffff640024ffffffff6600016400016500036400006600010203f6ffff6400006600011080000d10000000000000000000000000ffff640001650008feffffffffffffff6600010180ffffffffffff',
+    main: '640001650064000302627402626e026e62650003640024ffff640027ffff640024ffffffff6600016400016500036400006b00026c0004020000006d000203f6ffff6400006b00106c0004100000006d001080000d10000000000000000000000000ffff640001650008feffffffffffffff6b00006c0004000000006d0000ffffffffffff',
+  },
+  blobList: {
+    'v1.5.6':
+      '640001650064000102626c650001640065650001640004c80064001affffffffffffffff660001640001650001640000680002690001640000650002ffff6a00640001650008fdffffffffffffff6600020201020180ffffffffffffffff',
+    main: '640001650064000102626c650001640065650001640004c80064001affffffffffffffff660001640001650001640000680002690001640000650002ffff6a00640001650008fdffffffffffffff6b00026c000802000000000000006d00020102ffffffffffffffff',
+  },
+};
+
+/** Empty structs (new in DuckDB 2.0) omit their entries from the type info. */
+const emptyStructResponses = {
+  emptyStruct:
+    '6400016500640001026573650001640064650001640005ffffffffffff660001640001650001640000670000ffffffffffff',
+  nestedEmptyStructs:
+    '6400016500640002036e6573036c6573650002640064650001640005c80001000001650100640064650001640005ffffffffffffffffffff640065650001640004c800640064650001640005ffffffffffffffffffff660001640001650002640000670001640000670000ffffffff640000680001690001640000650001ffff6a00640000670000ffffffffffffffff',
+};
+
+suite('readQueryResult: BLOB, BIT, BIGNUM and empty STRUCT', () => {
+  for (const version of ['v1.5.6', 'main'] as const) {
+    suite(version, () => {
+      test(`select b from (values ('\\xAA\\x00\\xFF'::blob), (NULL), (''::blob), ('abc'::blob)) t(b)`, () => {
+        expect(decodeToStrings(blobResponses.blobs[version])).toStrictEqual({
+          types: ['BLOB'],
+          rows: [['\\xAA\\x00\\xFF'], ['NULL'], [''], ['abc']],
+        });
+        const { rows } = decode(blobResponses.blobs[version]);
+        expect(rows[0][0]).toStrictEqual(
+          new DuckDBBlobValue(new Uint8Array([0xaa, 0x00, 0xff])),
+        );
+        expect(rows[2][0]).toStrictEqual(
+          new DuckDBBlobValue(new Uint8Array([])),
+        );
+      });
+      test(`select '10110'::bit as bt, (2::bignum ** 100)::bignum as bn, NULL::bit as nb`, () => {
+        expect(
+          decodeToStrings(blobResponses.bitAndBignum[version]),
+        ).toStrictEqual({
+          types: ['BIT', 'BIGNUM', 'BIT'],
+          rows: [['10110', '1267650600228229401496703205376', 'NULL']],
+        });
+      });
+      test(`select ['\\x01\\x02'::blob, NULL] as bl`, () => {
+        expect(decodeToStrings(blobResponses.blobList[version])).toStrictEqual({
+          types: ['BLOB[]'],
+          rows: [['[\\x01\\x02, NULL]']],
+        });
+      });
+    });
+  }
+  suite('main', () => {
+    test('select {} as es', () => {
+      expect(decode(emptyStructResponses.emptyStruct)).toStrictEqual({
+        names: ['es'],
+        types: ['STRUCT()'],
+        rows: [[new DuckDBStructValue([])]],
+      });
+    });
+    test(`select {'e': {}} as nes, [{}] as les`, () => {
+      expect(decode(emptyStructResponses.nestedEmptyStructs)).toStrictEqual({
+        names: ['nes', 'les'],
+        types: ['STRUCT("e" STRUCT())', 'STRUCT()[]'],
+        rows: [
+          [
+            new DuckDBStructValue([
+              { key: 'e', value: new DuckDBStructValue([]) },
+            ]),
+            new DuckDBListValue([new DuckDBStructValue([])]),
+          ],
+        ],
+      });
+    });
+  });
+});

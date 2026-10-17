@@ -260,6 +260,13 @@ suite('readTypeInfo', () => {
       ),
     ).toThrowError('unsupported value type: 15');
   });
+  test('struct type info with no entries', () => {
+    // An empty list of entries is not written, since it's the default.
+    expect(readTypeInfo(deserializer(typeInfoBytes(5, [])))).toEqual({
+      kind: 'struct',
+      childTypes: [],
+    });
+  });
   test('unsupported type info', () => {
     // AGGREGATE_STATE_TYPE_INFO is not yet supported.
     expect(() => readTypeInfo(deserializer(typeInfoBytes(8, [])))).toThrowError(

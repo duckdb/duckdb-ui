@@ -28,15 +28,18 @@ export function readListEntryList(
 const decoder = new TextDecoder();
 
 /**
- * Read the string data of a VARCHAR vector serialized in the DuckDB 2.0+ format: the total byte length (field 107),
- * a blob of one little-endian uint32 length per row (field 108), and a blob of the concatenated bytes of the valid
- * strings (field 109). Mirrors Vector::Deserialize: invalid rows consume no bytes, whatever their length, and are
- * decoded as empty strings.
+ * Read the data of a vector of a string-like physical type (VARCHAR, CHAR, BLOB, BIT, BIGNUM) serialized in the DuckDB
+ * 2.0+ format: the total byte length (field 107), a blob of one little-endian uint32 length per row (field 108), and a
+ * blob of the concatenated bytes of the valid rows (field 109). Calls `fromBytes` with each valid row's bytes, which
+ * are a view into the response. Mirrors Vector::Deserialize: invalid rows consume no bytes, whatever their length, and
+ * are given the value `invalid`.
  */
-export function readStringBlobs(
+function readBlobs<T>(
   deserializer: BinaryDeserializer,
   validity: DataView | null,
-): string[] {
+  fromBytes: (bytes: Uint8Array) => T,
+  invalid: T,
+): T[] {
   const byteDataLength = deserializer.readProperty(107, readVarInt);
   const lengthData = deserializer.readProperty(108, readData);
   const byteData = deserializer.readProperty(109, readData);
@@ -56,11 +59,11 @@ export function readStringBlobs(
     byteData.byteLength,
   );
   const count = lengthData.byteLength / 4;
-  const strings: string[] = [];
+  const values: T[] = [];
   let position = 0;
   for (let i = 0; i < count; i++) {
     if (!isRowValid(validity, i)) {
-      strings.push('');
+      values.push(invalid);
       continue;
     }
     const length = lengthData.getUint32(i * 4, true);
@@ -69,10 +72,37 @@ export function readStringBlobs(
         `string lengths exceed byte data length ${byteDataLength}`,
       );
     }
-    strings.push(decoder.decode(bytes.subarray(position, position + length)));
+    values.push(fromBytes(bytes.subarray(position, position + length)));
     position += length;
   }
-  return strings;
+  return values;
+}
+
+/** Read the data of a VARCHAR or CHAR vector in the DuckDB 2.0+ format. See `readBlobs`. */
+export function readStringBlobs(
+  deserializer: BinaryDeserializer,
+  validity: DataView | null,
+): string[] {
+  return readBlobs(
+    deserializer,
+    validity,
+    (bytes) => decoder.decode(bytes),
+    '',
+  );
+}
+
+/** Read the data of a BLOB, BIT or BIGNUM vector in the DuckDB 2.0+ format. See `readBlobs`. */
+export function readDataBlobs(
+  deserializer: BinaryDeserializer,
+  validity: DataView | null,
+): DataView[] {
+  const empty = new DataView(new ArrayBuffer(0));
+  return readBlobs(
+    deserializer,
+    validity,
+    (bytes) => new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength),
+    empty,
+  );
 }
 
 /** See Vector::Deserialize in https://github.com/duckdb/duckdb/blob/main/src/common/types/vector.cpp */
@@ -148,7 +178,14 @@ export function readVector(
     case LogicalTypeId.BIT:
     case LogicalTypeId.BIGNUM:
       {
-        const data = deserializer.readProperty(102, readDataList);
+        // DuckDB before 2.0 serializes these as a list (field 102); 2.0+ uses two blobs (fields 107-109), except for
+        // GEOMETRY, which is still a list.
+        const data =
+          deserializer.readPropertyWithDefault<DataView[] | null>(
+            102,
+            readDataList,
+            null,
+          ) ?? readDataBlobs(deserializer, validity);
         vector = {
           ...baseVector,
           kind: 'datalist',

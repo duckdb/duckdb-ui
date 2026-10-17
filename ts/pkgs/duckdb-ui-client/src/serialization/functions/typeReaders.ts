@@ -184,7 +184,12 @@ export function readTypeInfo(deserializer: BinaryDeserializer): TypeInfo {
       break;
     case 5: // STRUCT_TYPE_INFO
       {
-        const childTypes = deserializer.readProperty(200, readStructEntryList);
+        // Not written for a struct with no entries (e.g. `STRUCT()`, new in DuckDB 2.0).
+        const childTypes = deserializer.readPropertyWithDefault(
+          200,
+          readStructEntryList,
+          [],
+        );
         typeInfo = {
           ...baseInfo,
           kind: 'struct',
