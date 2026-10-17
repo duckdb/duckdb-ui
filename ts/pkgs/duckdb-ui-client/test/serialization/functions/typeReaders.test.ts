@@ -113,6 +113,153 @@ suite('readTypeInfo', () => {
       crs: '',
     });
   });
+  test('type info with extension info', () => {
+    // A generic type info with alias EXT and extension info: modifiers [100, 'x' labeled 'lbl'], properties {p: true}.
+    const intValue = [
+      ...field(100),
+      ...typeBytes(13),
+      ...field(101),
+      0,
+      ...field(102),
+      0xe4,
+      0x00,
+      ...OBJECT_END,
+    ];
+    const varcharValue = [
+      ...field(100),
+      ...typeBytes(25),
+      ...field(101),
+      0,
+      ...field(102),
+      ...string('x'),
+      ...OBJECT_END,
+    ];
+    const boolValue = [
+      ...field(100),
+      ...typeBytes(10),
+      ...field(101),
+      0,
+      ...field(102),
+      1,
+      ...OBJECT_END,
+    ];
+    const extensionInfo = [
+      ...field(100),
+      2,
+      ...field(100),
+      ...intValue,
+      ...OBJECT_END,
+      ...field(100),
+      ...varcharValue,
+      ...field(101),
+      ...string('lbl'),
+      ...OBJECT_END,
+      ...field(101),
+      1,
+      ...field(0),
+      ...string('p'),
+      ...field(1),
+      ...boolValue,
+      ...OBJECT_END,
+      ...OBJECT_END,
+    ];
+    expect(
+      readTypeInfo(
+        deserializer([
+          ...field(100),
+          1,
+          ...field(101),
+          ...string('EXT'),
+          ...field(103),
+          1,
+          ...extensionInfo,
+          ...OBJECT_END,
+        ]),
+      ),
+    ).toEqual({
+      kind: 'generic',
+      alias: 'EXT',
+      extensionInfo: {
+        modifiers: [
+          { value: 100, label: '' },
+          { value: 'x', label: 'lbl' },
+        ],
+        properties: { p: true },
+      },
+    });
+  });
+  test('type info with empty extension info', () => {
+    expect(
+      readTypeInfo(
+        deserializer([
+          ...field(100),
+          1,
+          ...field(103),
+          1,
+          ...OBJECT_END,
+          ...OBJECT_END,
+        ]),
+      ),
+    ).toEqual({
+      kind: 'generic',
+      extensionInfo: { modifiers: [], properties: {} },
+    });
+  });
+  test('type info with null modifier value', () => {
+    expect(
+      readTypeInfo(
+        deserializer([
+          ...field(100),
+          1,
+          ...field(103),
+          1,
+          ...field(100),
+          1,
+          ...field(100),
+          ...field(100),
+          ...typeBytes(13),
+          ...field(101),
+          1,
+          ...OBJECT_END,
+          ...OBJECT_END,
+          ...OBJECT_END,
+          ...OBJECT_END,
+        ]),
+      ),
+    ).toEqual({
+      kind: 'generic',
+      extensionInfo: {
+        modifiers: [{ value: null, label: '' }],
+        properties: {},
+      },
+    });
+  });
+  test('type info with unsupported modifier value type', () => {
+    // A DATE modifier value isn't supported.
+    expect(() =>
+      readTypeInfo(
+        deserializer([
+          ...field(100),
+          1,
+          ...field(103),
+          1,
+          ...field(100),
+          1,
+          ...field(100),
+          ...field(100),
+          ...typeBytes(15),
+          ...field(101),
+          0,
+          ...field(102),
+          0,
+          ...OBJECT_END,
+          ...OBJECT_END,
+          ...OBJECT_END,
+          ...OBJECT_END,
+        ]),
+      ),
+    ).toThrowError('unsupported value type: 15');
+  });
   test('unsupported type info', () => {
     // AGGREGATE_STATE_TYPE_INFO is not yet supported.
     expect(() => readTypeInfo(deserializer(typeInfoBytes(8, [])))).toThrowError(

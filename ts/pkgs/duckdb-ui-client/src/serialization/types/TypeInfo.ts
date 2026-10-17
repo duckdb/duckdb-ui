@@ -1,6 +1,22 @@
+/** A scalar DuckDB Value, as found in type modifiers and properties. */
+export type ScalarValue = null | boolean | number | string;
+
+export interface TypeModifier {
+  value: ScalarValue;
+  /** Empty if the modifier has no label. */
+  label: string;
+}
+
+/** Type modifiers and properties of a type, typically one defined by an extension. */
+export interface ExtensionTypeInfo {
+  modifiers: TypeModifier[];
+  properties: Record<string, ScalarValue>;
+}
+
 export interface BaseTypeInfo {
   alias?: string;
   modifiers?: unknown[]; // TODO
+  extensionInfo?: ExtensionTypeInfo;
 }
 
 export interface GenericTypeInfo extends BaseTypeInfo {

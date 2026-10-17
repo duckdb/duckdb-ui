@@ -1,9 +1,19 @@
 import { BinaryDeserializer } from '../classes/BinaryDeserializer.js';
-import { BaseTypeInfo, TypeIdAndInfo, TypeInfo } from '../types/TypeInfo.js';
+import { LogicalTypeId } from '../constants/LogicalTypeId.js';
 import {
+  BaseTypeInfo,
+  ExtensionTypeInfo,
+  ScalarValue,
+  TypeIdAndInfo,
+  TypeInfo,
+  TypeModifier,
+} from '../types/TypeInfo.js';
+import {
+  readBoolean,
   readList,
   readNullable,
   readPair,
+  readSignedVarInt,
   readString,
   readStringList,
   readUint8,
@@ -32,6 +42,81 @@ export function readCoordinateReferenceSystem(
   return definition;
 }
 
+/** Read the data of a non-null scalar Value of the given type. See Value::SerializeInternal. */
+function readScalarValueData(
+  deserializer: BinaryDeserializer,
+  type: TypeIdAndInfo,
+): ScalarValue {
+  switch (type.id) {
+    case LogicalTypeId.BOOLEAN:
+      return readBoolean(deserializer);
+    case LogicalTypeId.TINYINT:
+    case LogicalTypeId.SMALLINT:
+    case LogicalTypeId.INTEGER:
+    case LogicalTypeId.BIGINT:
+      return readSignedVarInt(deserializer);
+    case LogicalTypeId.UTINYINT:
+    case LogicalTypeId.USMALLINT:
+    case LogicalTypeId.UINTEGER:
+    case LogicalTypeId.UBIGINT:
+      return readVarInt(deserializer);
+    case LogicalTypeId.FLOAT:
+      return deserializer.readFloat32();
+    case LogicalTypeId.DOUBLE:
+      return deserializer.readFloat64();
+    case LogicalTypeId.CHAR:
+    case LogicalTypeId.VARCHAR:
+    case LogicalTypeId.BLOB: // as an escaped string, e.g. '\x01'
+      return readString(deserializer);
+    default:
+      // The binary format can't be skipped without knowing its shape, so there's no way to ignore other values.
+      throw new Error(`unsupported value type: ${type.id}`);
+  }
+}
+
+/** Read a scalar Value. See Value::Deserialize in https://github.com/duckdb/duckdb/blob/main/src/common/types/value.cpp */
+export function readScalarValue(deserializer: BinaryDeserializer): ScalarValue {
+  // The type is written for every root (non-nested) value.
+  const type = deserializer.readProperty(100, readType);
+  const isNull = deserializer.readProperty(101, readBoolean);
+  const value = isNull
+    ? null
+    : deserializer.readProperty(102, (d) => readScalarValueData(d, type));
+  deserializer.expectObjectEnd();
+  return value;
+}
+
+/** See LogicalTypeModifier::Deserialize in https://github.com/duckdb/duckdb/blob/main/src/storage/serialization/serialize_types.cpp */
+export function readTypeModifier(
+  deserializer: BinaryDeserializer,
+): TypeModifier {
+  const value = deserializer.readProperty(100, readScalarValue);
+  const label = deserializer.readPropertyWithDefault(101, readString, '');
+  deserializer.expectObjectEnd();
+  return { value, label };
+}
+
+/** See ExtensionTypeInfo::Deserialize in https://github.com/duckdb/duckdb/blob/main/src/storage/serialization/serialize_types.cpp */
+export function readExtensionTypeInfo(
+  deserializer: BinaryDeserializer,
+): ExtensionTypeInfo {
+  const modifiers = deserializer.readPropertyWithDefault(
+    100,
+    (d) => readList(d, readTypeModifier),
+    [],
+  );
+  const properties = deserializer.readPropertyWithDefault(
+    101,
+    (d) =>
+      Object.fromEntries(
+        readList(d, (pd) => readPair(pd, readString, readScalarValue)),
+      ),
+    {},
+  );
+  deserializer.expectObjectEnd();
+  return { modifiers, properties };
+}
+
 /** See ExtraTypeInfo::Deserialize in https://github.com/duckdb/duckdb/blob/main/src/storage/serialization/serialize_types.cpp */
 export function readTypeInfo(deserializer: BinaryDeserializer): TypeInfo {
   const typeInfoType = deserializer.readProperty(100, readUint8);
@@ -41,9 +126,16 @@ export function readTypeInfo(deserializer: BinaryDeserializer): TypeInfo {
     readUnsupported,
     null,
   );
+  // Written for types with type modifiers or properties, typically ones defined by extensions.
+  const extensionInfo = deserializer.readPropertyWithDefault(
+    103,
+    (d) => readNullable(d, readExtensionTypeInfo),
+    null,
+  );
   const baseInfo: BaseTypeInfo = {
     ...(alias ? { alias } : {}),
     ...(modifiers ? { modifiers } : {}),
+    ...(extensionInfo ? { extensionInfo } : {}),
   };
   let typeInfo: TypeInfo | undefined;
   switch (typeInfoType) {

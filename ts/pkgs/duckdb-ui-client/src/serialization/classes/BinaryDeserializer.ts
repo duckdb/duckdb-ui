@@ -83,6 +83,38 @@ export class BinaryDeserializer {
     return result;
   }
 
+  /**
+   * Read a signed LEB128 varint, as DuckDB writes signed integers. Throws if the value can't be represented exactly as
+   * a number.
+   */
+  public readSignedVarInt() {
+    let result = 0;
+    let multiplier = 1;
+    let byte = this.reader.readUint8();
+    while (byte & 0x80) {
+      result += (byte & 0x7f) * multiplier;
+      multiplier *= 0x80;
+      byte = this.reader.readUint8();
+    }
+    // The last byte's 0x40 bit is the sign. Apply it within that byte's contribution, rather than sign-extending the
+    // whole result afterwards, so values near the safe integer limits don't lose precision.
+    result += ((byte & 0x3f) - (byte & 0x40)) * multiplier;
+    if (!Number.isSafeInteger(result)) {
+      throw new Error(
+        `signed varint exceeds the safe integer range (offset=${this.reader.getOffset()})`,
+      );
+    }
+    return result;
+  }
+
+  public readFloat32() {
+    return this.reader.readData(4).getFloat32(0, true);
+  }
+
+  public readFloat64() {
+    return this.reader.readData(8).getFloat64(0, true);
+  }
+
   public readNullable<T>(reader: Reader<T>) {
     const present = this.readUint8();
     if (present) {

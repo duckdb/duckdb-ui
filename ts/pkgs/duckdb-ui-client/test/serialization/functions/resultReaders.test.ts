@@ -348,3 +348,110 @@ suite('readQueryResult: TUPLE and GEOMETRY', () => {
     });
   });
 });
+
+/**
+ * Responses for an extension-style type: EXT_VARCHAR, an alias over VARCHAR whose binder attaches ExtensionTypeInfo with
+ * the given modifiers (like the mssql extension's MSSQL_NVARCHAR(n)). Captured from a program that registers it, linked
+ * against the ui extension built for each DuckDB version. See duckdb/duckdb-ui#252.
+ */
+const extensionTypeResponses = {
+  withModifier: {
+    'v1.5.6':
+      '6400016500640001016365000164001965000164000165000b4558545f564152434841526700016400016400640064000dffff6500006600e400ffffffffffffffffffffffff66000164000165000164000066000103616263ffffffffffff',
+    main: '6400016500640001016365000164001965000164000165000b4558545f564152434841526700016400016400640064000dffff6500006600e400ffffffffffffffffffffffff6600016400016500016400006b00036c0004030000006d0003616263ffffffffffff',
+  },
+  withoutModifiers: {
+    'v1.5.6':
+      '6400016500640001016365000164001965000164000165000b4558545f56415243484152670001ffffffffffffffff66000164000165000164000066000103616263ffffffffffff',
+    main: '6400016500640001016365000164001965000164000165000b4558545f56415243484152670001ffffffffffffffff6600016400016500016400006b00036c0004030000006d0003616263ffffffffffff',
+  },
+  withModifiers: {
+    'v1.5.6':
+      '6400016500640001016365000164001965000164000165000b4558545f5641524348415267000164000264006400640019ffff65000066000178ffffffff6400640064000dffff650000660007ffffffffffffffffffffffff66000164000165000164000066000103616263ffffffffffff',
+    main: '6400016500640001016365000164001965000164000165000b4558545f5641524348415267000164000264006400640019ffff65000066000178ffffffff6400640064000dffff650000660007ffffffffffffffffffffffff6600016400016500016400006b00036c0004030000006d0003616263ffffffffffff',
+  },
+  inList: {
+    'v1.5.6':
+      '6400016500640001016c650001640065650001640004c80064001965000164000165000b4558545f564152434841526700016400016400640064000dffff6500006600e400ffffffffffffffffffffffffffffffff660001640001650001640000680001690001640000650001ffff6a0064000066000103616263ffffffffffffffff',
+    main: '6400016500640001016c650001640065650001640004c80064001965000164000165000b4558545f564152434841526700016400016400640064000dffff6500006600e400ffffffffffffffffffffffffffffffff660001640001650001640000680001690001640000650001ffff6a006400006b00036c0004030000006d0003616263ffffffffffffffff',
+  },
+  withLabelAndProperties: {
+    'v1.5.6':
+      '64000165006400020163016965000264001965000164000165000b4558545f5641524348415267000164000264006400640019ffff65000066000178ffff6500076c6162656c5f78ffff6400640064000dffff650000660079ffffffff6500050000036e65670100640064000dffff65000066007bffffffff000004666c61670100640064000affff650000660001ffffffff0000036269670100640064001fffff650000660080d0acf30effffffff000005726174696f01006400640017ffff6500006600000000000000e03fffffffff0000016601006400640016ffff65000066000000a03fffffffffffffffffffff64000dffffffff66000164000165000264000066000103616263ffff6400006600042a000000ffffffffffff',
+    main: '64000165006400020163016965000264001965000164000165000b4558545f5641524348415267000164000264006400640019ffff65000066000178ffff6500076c6162656c5f78ffff6400640064000dffff650000660079ffffffff6500060000036e65670100640064000dffff65000066007bffffffff0000046e6f6e6501006400640019ffff650001ffffffff000004666c61670100640064000affff650000660001ffffffff0000036269670100640064001fffff650000660080d0acf30effffffff000005726174696f01006400640017ffff6500006600000000000000e03fffffffff0000016601006400640016ffff65000066000000a03fffffffffffffffffffff64000dffffffff6600016400016500026400006b00036c0004030000006d0003616263ffff6400006600042a000000ffffffffffff',
+  },
+};
+
+suite('readQueryResult: extension types (duckdb/duckdb-ui#252)', () => {
+  for (const version of ['v1.5.6', 'main'] as const) {
+    suite(version, () => {
+      test(`select 'abc'::EXT_VARCHAR(100) as c`, () => {
+        const response = extensionTypeResponses.withModifier[version];
+        expect(decode(response)).toStrictEqual({
+          names: ['c'],
+          types: ['EXT_VARCHAR'],
+          rows: [['abc']],
+        });
+        expect(typeInfoOfFirstColumn(response)).toStrictEqual({
+          kind: 'generic',
+          alias: 'EXT_VARCHAR',
+          extensionInfo: {
+            modifiers: [{ value: 100, label: '' }],
+            properties: {},
+          },
+        });
+      });
+      test(`select 'abc'::EXT_VARCHAR as c`, () => {
+        // Extension info is written even with no modifiers.
+        const response = extensionTypeResponses.withoutModifiers[version];
+        expect(decode(response).rows).toStrictEqual([['abc']]);
+        expect(typeInfoOfFirstColumn(response)).toStrictEqual({
+          kind: 'generic',
+          alias: 'EXT_VARCHAR',
+          extensionInfo: { modifiers: [], properties: {} },
+        });
+      });
+      test(`select 'abc'::EXT_VARCHAR('x', 7) as c`, () => {
+        const response = extensionTypeResponses.withModifiers[version];
+        expect(decode(response).rows).toStrictEqual([['abc']]);
+        expect(typeInfoOfFirstColumn(response)?.extensionInfo).toStrictEqual({
+          modifiers: [
+            { value: 'x', label: '' },
+            { value: 7, label: '' },
+          ],
+          properties: {},
+        });
+      });
+      test(`select ['abc'::EXT_VARCHAR(100)] as l`, () => {
+        expect(decode(extensionTypeResponses.inList[version])).toStrictEqual({
+          names: ['l'],
+          types: ['EXT_VARCHAR[]'],
+          rows: [[new DuckDBListValue(['abc'])]],
+        });
+      });
+      test(`select 'abc'::EXT_VARCHAR('x', -7) as c, 42 as i (with label and properties)`, () => {
+        const response = extensionTypeResponses.withLabelAndProperties[version];
+        expect(decode(response)).toStrictEqual({
+          names: ['c', 'i'],
+          types: ['EXT_VARCHAR', 'INTEGER'],
+          rows: [['abc', 42]],
+        });
+        expect(typeInfoOfFirstColumn(response)?.extensionInfo).toStrictEqual({
+          modifiers: [
+            { value: 'x', label: 'label_x' },
+            { value: -7, label: '' },
+          ],
+          properties: {
+            neg: -5,
+            big: 4000000000,
+            flag: true,
+            ratio: 0.5,
+            f: 1.25,
+            // A null property makes DuckDB 1.5 throw comparing types, so it's only in the main capture.
+            ...(version === 'main' ? { none: null } : {}),
+          },
+        });
+      });
+    });
+  }
+});

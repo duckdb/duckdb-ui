@@ -27,6 +27,10 @@ export function readVarInt(deserializer: BinaryDeserializer): number {
   return deserializer.readVarInt();
 }
 
+export function readSignedVarInt(deserializer: BinaryDeserializer): number {
+  return deserializer.readSignedVarInt();
+}
+
 export function readVarIntList(deserializer: BinaryDeserializer): number[] {
   return readList(deserializer, readVarInt);
 }
