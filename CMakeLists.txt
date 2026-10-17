@@ -27,6 +27,7 @@ set(EXTENSION_SOURCES
     src/utils/helpers.cpp
     src/utils/md_helpers.cpp
     src/utils/serialization.cpp
+    src/utils/statement_execution.cpp
     src/watcher.cpp)
 
 # DuckDB 2.x treats the DUCKDB_VERSION environment variable as an explicit

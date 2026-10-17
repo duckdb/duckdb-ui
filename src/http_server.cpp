@@ -8,6 +8,7 @@
 #include "utils/helpers.hpp"
 #include "utils/md_helpers.hpp"
 #include "utils/serialization.hpp"
+#include "utils/statement_execution.hpp"
 #include "version.hpp"
 #include "watcher.hpp"
 
@@ -364,6 +365,39 @@ void HttpServer::HandleRun(const httplib::Request &req, httplib::Response &res,
   }
 }
 
+namespace {
+
+// Rolls back a connection's transaction when it goes out of scope, unless it
+// was committed. Unlike destroying the connection, this also rolls back while
+// unwinding an exception.
+class RollbackUnlessCommitted {
+public:
+  explicit RollbackUnlessCommitted(duckdb::Connection &connection)
+      : connection(connection) {}
+
+  ~RollbackUnlessCommitted() {
+    if (committed || !connection.HasActiveTransaction()) {
+      return;
+    }
+    try {
+      connection.Rollback();
+    } catch (...) {
+      // Don't throw from a destructor; the connection is discarded anyway.
+    }
+  }
+
+  void Commit() {
+    connection.Commit();
+    committed = true;
+  }
+
+private:
+  duckdb::Connection &connection;
+  bool committed = false;
+};
+
+} // namespace
+
 void HttpServer::DoHandleRun(const httplib::Request &req,
                              httplib::Response &res,
                              const httplib::ContentReader &content_reader) {
@@ -477,217 +511,158 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
   }
 
   // If there's more than one statement, run all but the last.
-  if (statement_count > 1) {
-    for (size_t i = 0; i < statement_count - 1; ++i) {
-      auto pending = connection->PendingQuery(std::move(statements[i]), true);
-      // Return any error found before execution.
-      if (pending->HasError()) {
-        SetResponseErrorResult(res, pending->GetError());
-        return;
-      }
-      // Execute tasks until result is ready (or there's an error).
-      auto exec_result = PendingExecutionResult::RESULT_NOT_READY;
-      while (!PendingQueryResult::IsResultReady(exec_result)) {
-        exec_result = pending->ExecuteTask();
-        if (exec_result == PendingExecutionResult::BLOCKED ||
-            exec_result == PendingExecutionResult::NO_TASKS_AVAILABLE) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-      }
-      // Return any error found during execution.
-      switch (exec_result) {
-      case PendingExecutionResult::EXECUTION_ERROR:
-        SetResponseErrorResult(res, pending->GetError());
-        return;
-      case PendingExecutionResult::EXECUTION_FINISHED:
-      case PendingExecutionResult::RESULT_READY:
-        // ignore the result
-        pending->Execute();
-        break;
-      default:
-        SetResponseErrorResult(
-            res, StringUtil::Format("Unexpected PendingExecutionResult: %s",
-                                    exec_result));
-        return;
-      }
-    }
-  }
-
-  // Get the last statement.
-  auto &statement_to_run = statements[statement_count - 1];
-
-  // We use a pending query so we can execute tasks and fetch chunks
-  // incrementally. This enables cancellation.
-  unique_ptr<PendingQueryResult> pending;
-
-  // Create pending query, with request content as SQL.
-  if (parameter_values.size() > 0) {
-    auto prepared = connection->Prepare(std::move(statement_to_run));
-    if (prepared->HasError()) {
-      SetResponseErrorResult(res, prepared->GetError());
+  for (size_t i = 0; i + 1 < statement_count; ++i) {
+    string error;
+    if (!RunStatement(*connection, std::move(statements[i]), error)) {
+      SetResponseErrorResult(res, error);
       return;
     }
-
-    vector<Value> values;
-    for (auto &parameter_value : parameter_values) {
-      // TODO: support non-string parameters?
-      values.push_back(Value(parameter_value));
-    }
-    pending = prepared->PendingQuery(values, true);
-  } else {
-    pending = connection->PendingQuery(std::move(statement_to_run), true);
   }
 
-  if (pending->HasError()) {
-    SetResponseErrorResult(res, pending->GetError());
+  vector<Value> values;
+  for (auto &parameter_value : parameter_values) {
+    // TODO: support non-string parameters?
+    values.push_back(Value(parameter_value));
+  }
+
+  // Run the last statement, keeping its result.
+  auto result = StatementResult::Run(
+      *connection, std::move(statements[statement_count - 1]), values);
+  if (result->HasError()) {
+    SetResponseErrorResult(res, result->GetError());
     return;
   }
 
-  // Execute tasks until result is ready (or there's an error).
-  auto exec_result = PendingExecutionResult::RESULT_NOT_READY;
-  while (!PendingQueryResult::IsResultReady(exec_result)) {
-    exec_result = pending->ExecuteTask();
-    if (exec_result == PendingExecutionResult::BLOCKED ||
-        exec_result == PendingExecutionResult::NO_TASKS_AVAILABLE) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    }
-  }
+  const auto &result_names = result->GetNames();
+  const auto &result_types = result->GetTypes();
 
-  switch (exec_result) {
+  // We use a separate connection for the appender, including creating the
+  // result table, because we still need to fetch chunks from the result on
+  // the user's connection. The table is created and filled in a transaction
+  // on that connection, committed only if all rows are fetched successfully,
+  // so a result that fails partway leaves no table behind.
+  unique_ptr<duckdb::Connection> appender_connection;
+  // Declared between the connection and the appender, so it rolls back after
+  // the appender flushes and before the connection is destroyed.
+  unique_ptr<RollbackUnlessCommitted> result_table_transaction;
+  unique_ptr<duckdb::Appender> appender;
 
-  case PendingExecutionResult::EXECUTION_ERROR:
-    SetResponseErrorResult(res, pending->GetError());
-    break;
-
-  case PendingExecutionResult::EXECUTION_FINISHED:
-  case PendingExecutionResult::RESULT_READY: {
-    // Get the result. This should be quick because it's ready.
-    auto result = pending->Execute();
-#if DUCKDB_VERSION_AT_LEAST(2, 0, 0)
-    const auto &result_names = result->GetNames();
-    const auto &result_types = result->GetTypes();
-#else
-    const auto &result_names = result->names;
-    const auto &result_types = result->types;
-#endif
-
-    // We use a separate connection for the appender, including creating the
-    // result table, because we still need to fetch chunks from the pending
-    // query on the user's connection.
-    unique_ptr<duckdb::Connection> appender_connection;
-    unique_ptr<duckdb::Appender> appender;
-
-    if (!result_table_name.empty()) {
-      auto result_database_name = result_database_name_option.empty()
-                                      ? "memory"
-                                      : result_database_name_option;
-      auto result_schema_name = result_schema_name_option.empty()
-                                    ? "main"
-                                    : result_schema_name_option;
+  if (!result_table_name.empty()) {
+    auto result_database_name = result_database_name_option.empty()
+                                    ? "memory"
+                                    : result_database_name_option;
+    auto result_schema_name =
+        result_schema_name_option.empty() ? "main" : result_schema_name_option;
 
 #if DUCKDB_VERSION_AT_LEAST(1, 6, 0)
-      auto result_table_info =
-          make_uniq<duckdb::CreateTableInfo>(QualifiedName(
-              AsCatalogIdentifier(result_database_name),
-              AsCatalogIdentifier(result_schema_name),
-              AsCatalogIdentifier(result_table_name)));
+    auto result_table_info = make_uniq<duckdb::CreateTableInfo>(
+        QualifiedName(AsCatalogIdentifier(result_database_name),
+                      AsCatalogIdentifier(result_schema_name),
+                      AsCatalogIdentifier(result_table_name)));
 #else
-      auto result_table_info = make_uniq<duckdb::CreateTableInfo>(
-          AsCatalogIdentifier(result_database_name),
-          AsCatalogIdentifier(result_schema_name),
-          AsCatalogIdentifier(result_table_name));
+    auto result_table_info = make_uniq<duckdb::CreateTableInfo>(
+        AsCatalogIdentifier(result_database_name),
+        AsCatalogIdentifier(result_schema_name),
+        AsCatalogIdentifier(result_table_name));
 #endif
-      for (idx_t i = 0; i < result_names.size(); i++) {
-        result_table_info->columns.AddColumn(ColumnDefinition(
-            AsCatalogIdentifier(result_names[i]), result_types[i]));
-      }
+    for (idx_t i = 0; i < result_names.size(); i++) {
+      result_table_info->columns.AddColumn(ColumnDefinition(
+          AsCatalogIdentifier(result_names[i]), result_types[i]));
+    }
 
-      appender_connection = make_uniq<duckdb::Connection>(*db);
-      auto appender_context = appender_connection->context;
-      appender_context->RunFunctionInTransaction([&] {
-        auto &catalog = duckdb::Catalog::GetCatalog(
-            *appender_context, AsCatalogIdentifier(result_database_name));
+    appender_connection = make_uniq<duckdb::Connection>(*db);
+    appender_connection->BeginTransaction();
+    result_table_transaction =
+        make_uniq<RollbackUnlessCommitted>(*appender_connection);
+    auto appender_context = appender_connection->context;
+    appender_context->RunFunctionInTransaction([&] {
+      auto &catalog = duckdb::Catalog::GetCatalog(
+          *appender_context, AsCatalogIdentifier(result_database_name));
 #if DUCKDB_MAJOR_VERSION == 1 && DUCKDB_MINOR_VERSION < 5
-        MetaTransaction::Get(*appender_context)
-            .ModifyDatabase(catalog.GetAttached());
+      MetaTransaction::Get(*appender_context)
+          .ModifyDatabase(catalog.GetAttached());
 #else
-        MetaTransaction::Get(*appender_context)
-            .ModifyDatabase(catalog.GetAttached(),
-                            DatabaseModificationType::CREATE_CATALOG_ENTRY);
+      MetaTransaction::Get(*appender_context)
+          .ModifyDatabase(catalog.GetAttached(),
+                          DatabaseModificationType::CREATE_CATALOG_ENTRY);
 #endif
-        catalog.CreateTable(*appender_context, std::move(result_table_info));
-      });
+      catalog.CreateTable(*appender_context, std::move(result_table_info));
+    });
 
-      appender = make_uniq<duckdb::Appender>(
-          *appender_connection, AsCatalogIdentifier(result_database_name),
-          AsCatalogIdentifier(result_schema_name),
-          AsCatalogIdentifier(result_table_name));
-    }
+    appender = make_uniq<duckdb::Appender>(
+        *appender_connection, AsCatalogIdentifier(result_database_name),
+        AsCatalogIdentifier(result_schema_name),
+        AsCatalogIdentifier(result_table_name));
+  }
 
-    // Fetch the chunks and serialize the result.
-    SuccessResult success_result;
+  // Fetch the chunks and serialize the result.
+  SuccessResult success_result;
 #if DUCKDB_VERSION_AT_LEAST(2, 0, 0)
-    for (const auto &name : result_names) {
-      success_result.column_names_and_types.names.push_back(
-          name.GetIdentifierName());
-    }
+  for (const auto &name : result_names) {
+    success_result.column_names_and_types.names.push_back(
+        name.GetIdentifierName());
+  }
 #else
-    success_result.column_names_and_types.names = result_names;
+  success_result.column_names_and_types.names = result_names;
 #endif
-    success_result.column_names_and_types.types = result_types;
+  success_result.column_names_and_types.types = result_types;
 
-    auto row_limit = std::max(result_row_limit, result_table_row_limit);
-    auto rows_fetched = 0;
-    auto rows_appended = 0;
-    auto rows_in_result = 0;
-    unique_ptr<duckdb::DataChunk> chunk;
-    while (rows_fetched < row_limit) {
-      chunk = result->Fetch();
-      if (!chunk) {
-        break;
-      }
-      rows_fetched += chunk->size();
-      if (appender && rows_appended < result_table_row_limit) {
-        duckdb::DataChunk *chunk_to_append = chunk.get();
-        duckdb::DataChunk chunk_prefix;
-        const idx_t rows_left = result_table_row_limit - rows_appended;
-        if (chunk->size() > rows_left) {
-          HttpServer::CopyAndSlice(*chunk, chunk_prefix, rows_left);
-          chunk_to_append = &chunk_prefix;
-        }
-        appender->AppendDataChunk(*chunk_to_append);
-        rows_appended += chunk_to_append->size();
-      }
-      if (rows_in_result < result_row_limit) {
-        duckdb::DataChunk *chunk_to_add = chunk.get();
-        duckdb::DataChunk chunk_prefix;
-        const idx_t rows_left = result_row_limit - rows_in_result;
-        if (chunk->size() > rows_left) {
-          HttpServer::CopyAndSlice(*chunk, chunk_prefix, rows_left);
-          chunk_to_add = &chunk_prefix;
-        }
-        success_result.chunks.push_back(
-            {static_cast<uint16_t>(chunk_to_add->size()),
-             std::move(chunk_to_add->data)});
-        rows_in_result += chunk_to_add->size();
-      }
+  auto row_limit = std::max(result_row_limit, result_table_row_limit);
+  auto rows_fetched = 0;
+  auto rows_appended = 0;
+  auto rows_in_result = 0;
+  unique_ptr<duckdb::DataChunk> chunk;
+  while (rows_fetched < row_limit) {
+    chunk = result->Fetch();
+    if (!chunk) {
+      break;
     }
-
-    if (appender) {
-      appender->Close();
+    rows_fetched += chunk->size();
+    if (appender && rows_appended < result_table_row_limit) {
+      duckdb::DataChunk *chunk_to_append = chunk.get();
+      duckdb::DataChunk chunk_prefix;
+      const idx_t rows_left = result_table_row_limit - rows_appended;
+      if (chunk->size() > rows_left) {
+        HttpServer::CopyAndSlice(*chunk, chunk_prefix, rows_left);
+        chunk_to_append = &chunk_prefix;
+      }
+      appender->AppendDataChunk(*chunk_to_append);
+      rows_appended += chunk_to_append->size();
     }
+    if (rows_in_result < result_row_limit) {
+      duckdb::DataChunk *chunk_to_add = chunk.get();
+      duckdb::DataChunk chunk_prefix;
+      const idx_t rows_left = result_row_limit - rows_in_result;
+      if (chunk->size() > rows_left) {
+        HttpServer::CopyAndSlice(*chunk, chunk_prefix, rows_left);
+        chunk_to_add = &chunk_prefix;
+      }
+      // Get the size before moving the vectors out: in DuckDB 2.0+, a chunk's
+      // size can be derived from its vectors.
+      const auto rows_to_add = chunk_to_add->size();
+      success_result.chunks.push_back(
+          {static_cast<uint16_t>(rows_to_add), std::move(chunk_to_add->data)});
+      rows_in_result += rows_to_add;
+    }
+  }
 
-    MemoryStream success_response_content;
-    BinarySerializer::Serialize(success_result, success_response_content);
-    SetResponseContent(res, success_response_content);
-    break;
+  if (appender) {
+    appender->Close();
   }
-  default:
-    SetResponseErrorResult(
-        res, StringUtil::Format("Unexpected PendingExecutionResult: %s",
-                                exec_result));
-    break;
+
+  if (result->HasError()) {
+    // The result table's transaction is rolled back on return.
+    SetResponseErrorResult(res, result->GetError());
+    return;
   }
+
+  if (result_table_transaction) {
+    result_table_transaction->Commit();
+  }
+
+  MemoryStream success_response_content;
+  BinarySerializer::Serialize(success_result, success_response_content);
+  SetResponseContent(res, success_response_content);
 }
 
 void HttpServer::HandleTokenize(const httplib::Request &req,
