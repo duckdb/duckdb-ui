@@ -303,6 +303,19 @@ export class DuckDBTimeType extends BaseDuckDBType<DuckDBTypeId.TIME> {
 }
 export const TIME = DuckDBTimeType.instance;
 
+export class DuckDBTimeNanosecondsType extends BaseDuckDBType<DuckDBTypeId.TIME_NS> {
+  public constructor(alias?: string) {
+    super(DuckDBTypeId.TIME_NS, alias);
+  }
+  public static readonly instance = new DuckDBTimeNanosecondsType();
+  public static create(alias?: string): DuckDBTimeNanosecondsType {
+    return alias
+      ? new DuckDBTimeNanosecondsType(alias)
+      : DuckDBTimeNanosecondsType.instance;
+  }
+}
+export const TIME_NS = DuckDBTimeNanosecondsType.instance;
+
 export class DuckDBIntervalType extends BaseDuckDBType<DuckDBTypeId.INTERVAL> {
   public constructor(alias?: string) {
     super(DuckDBTypeId.INTERVAL, alias);
@@ -879,6 +892,22 @@ export class DuckDBTimestampTZType extends BaseDuckDBType<DuckDBTypeId.TIMESTAMP
 }
 export const TIMESTAMPTZ = DuckDBTimestampTZType.instance;
 
+export class DuckDBTimestampTZNanosecondsType extends BaseDuckDBType<DuckDBTypeId.TIMESTAMP_TZ_NS> {
+  public constructor(alias?: string) {
+    super(DuckDBTypeId.TIMESTAMP_TZ_NS, alias);
+  }
+  public toString(_options?: DuckDBTypeToStringOptions): string {
+    return this.alias ?? 'TIMESTAMPTZ_NS';
+  }
+  public static readonly instance = new DuckDBTimestampTZNanosecondsType();
+  public static create(alias?: string): DuckDBTimestampTZNanosecondsType {
+    return alias
+      ? new DuckDBTimestampTZNanosecondsType(alias)
+      : DuckDBTimestampTZNanosecondsType.instance;
+  }
+}
+export const TIMESTAMPTZ_NS = DuckDBTimestampTZNanosecondsType.instance;
+
 export class DuckDBAnyType extends BaseDuckDBType<DuckDBTypeId.ANY> {
   public constructor(alias?: string) {
     super(DuckDBTypeId.ANY, alias);
@@ -970,6 +999,7 @@ export type DuckDBType =
   | DuckDBTimestampType
   | DuckDBDateType
   | DuckDBTimeType
+  | DuckDBTimeNanosecondsType
   | DuckDBIntervalType
   | DuckDBHugeIntType
   | DuckDBUHugeIntType
@@ -989,6 +1019,7 @@ export type DuckDBType =
   | DuckDBBitType
   | DuckDBTimeTZType
   | DuckDBTimestampTZType
+  | DuckDBTimestampTZNanosecondsType
   | DuckDBAnyType
   | DuckDBBigNumType
   | DuckDBSQLNullType

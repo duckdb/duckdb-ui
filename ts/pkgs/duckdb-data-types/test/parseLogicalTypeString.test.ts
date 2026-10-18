@@ -20,11 +20,13 @@ import {
   SQLNULL,
   STRUCT,
   TIME,
+  TIME_NS,
   TIMESTAMP,
   TIMESTAMP_MS,
   TIMESTAMP_NS,
   TIMESTAMP_S,
   TIMESTAMPTZ,
+  TIMESTAMPTZ_NS,
   TIMETZ,
   TINYINT,
   UBIGINT,
@@ -169,6 +171,14 @@ suite('parseLogicalTypeString', () => {
     expect(parseLogicalTypeString('DOUBLE[]')).toStrictEqual(LIST(DOUBLE));
   });
 
+  test('TIME_NS', () => {
+    expect(parseLogicalTypeString('TIME_NS')).toStrictEqual(TIME_NS);
+  });
+  test('TIMESTAMPTZ_NS', () => {
+    expect(parseLogicalTypeString('TIMESTAMPTZ_NS')).toStrictEqual(
+      TIMESTAMPTZ_NS,
+    );
+  });
   test('SQLNULL', () => {
     expect(parseLogicalTypeString('SQLNULL')).toStrictEqual(SQLNULL);
   });

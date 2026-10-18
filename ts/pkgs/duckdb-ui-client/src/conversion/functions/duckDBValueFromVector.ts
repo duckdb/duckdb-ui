@@ -8,12 +8,14 @@ import {
   DuckDBListValue,
   DuckDBMapValue,
   DuckDBStructValue,
+  DuckDBTimeNanosecondsValue,
   DuckDBTimeTZValue,
   DuckDBTimeValue,
   DuckDBTimestampMicrosecondsValue,
   DuckDBTimestampMillisecondsValue,
   DuckDBTimestampNanosecondsValue,
   DuckDBTimestampSecondsValue,
+  DuckDBTimestampTZNanosecondsValue,
   DuckDBTimestampTZValue,
   DuckDBUUIDValue,
   DuckDBValue,
@@ -87,6 +89,10 @@ export function duckDBValueFromVector(
       );
     case LogicalTypeId.TIME:
       return new DuckDBTimeValue(
+        getInt64(getDataVector(vector).data, rowIndex * 8),
+      );
+    case LogicalTypeId.TIME_NS:
+      return new DuckDBTimeNanosecondsValue(
         getInt64(getDataVector(vector).data, rowIndex * 8),
       );
     case LogicalTypeId.TIMESTAMP_SEC:
@@ -168,6 +174,10 @@ export function duckDBValueFromVector(
 
     case LogicalTypeId.TIMESTAMP_TZ:
       return new DuckDBTimestampTZValue(
+        getInt64(getDataVector(vector).data, rowIndex * 8),
+      );
+    case LogicalTypeId.TIMESTAMP_TZ_NS:
+      return new DuckDBTimestampTZNanosecondsValue(
         getInt64(getDataVector(vector).data, rowIndex * 8),
       );
     case LogicalTypeId.TIME_TZ:

@@ -43,6 +43,15 @@ suite('DuckDBTimestampMillisecondsValue', () => {
     ).toStrictEqual('290309-12-22 (BC) 00:00:00');
   });
 
+  test('should render infinity and -infinity', () => {
+    expect(
+      new DuckDBTimestampMillisecondsValue(9223372036854775807n).toString(),
+    ).toStrictEqual('infinity');
+    expect(
+      new DuckDBTimestampMillisecondsValue(-9223372036854775807n).toString(),
+    ).toStrictEqual('-infinity');
+  });
+
   suite('toSql', () => {
     test('should render timestamp to SQL', () => {
       const timestamp = new DuckDBTimestampMillisecondsValue(

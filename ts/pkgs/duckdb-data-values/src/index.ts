@@ -16,7 +16,9 @@ export { DuckDBTimestampMicrosecondsValue } from './DuckDBTimestampMicrosecondsV
 export { DuckDBTimestampMillisecondsValue } from './DuckDBTimestampMillisecondsValue.js';
 export { DuckDBTimestampNanosecondsValue } from './DuckDBTimestampNanosecondsValue.js';
 export { DuckDBTimestampSecondsValue } from './DuckDBTimestampSecondsValue.js';
+export { DuckDBTimestampTZNanosecondsValue } from './DuckDBTimestampTZNanosecondsValue.js';
 export { DuckDBTimestampTZValue } from './DuckDBTimestampTZValue.js';
+export { DuckDBTimeNanosecondsValue } from './DuckDBTimeNanosecondsValue.js';
 export { DuckDBTimeTZValue } from './DuckDBTimeTZValue.js';
 export { DuckDBTimeValue } from './DuckDBTimeValue.js';
 export { DuckDBToStringOptions } from './DuckDBToStringOptions.js';

@@ -30,12 +30,30 @@ suite('DuckDBTimestampNanosecondsValue', () => {
   test('should render the max timestamp value to the correct string', () => {
     expect(
       new DuckDBTimestampNanosecondsValue(9223372036854775806n).toString(),
-    ).toStrictEqual('2262-04-11 23:47:16.854775');
+    ).toStrictEqual('2262-04-11 23:47:16.854775806');
   });
   test('should render the min timestamp value to the correct string', () => {
     expect(
       new DuckDBTimestampNanosecondsValue(-9223372036854775806n).toString(),
-    ).toStrictEqual('1677-09-21 00:12:43.145225');
+    ).toStrictEqual('1677-09-21 00:12:43.145224194');
+  });
+  test('should render all nine digits of the fraction', () => {
+    expect(
+      new DuckDBTimestampNanosecondsValue(1612325106007891234n).toString(),
+    ).toStrictEqual('2021-02-03 04:05:06.007891234');
+  });
+  test('should render a nanosecond before the epoch', () => {
+    expect(new DuckDBTimestampNanosecondsValue(-1n).toString()).toStrictEqual(
+      '1969-12-31 23:59:59.999999999',
+    );
+  });
+  test('should render infinity and -infinity', () => {
+    expect(
+      new DuckDBTimestampNanosecondsValue(9223372036854775807n).toString(),
+    ).toStrictEqual('infinity');
+    expect(
+      new DuckDBTimestampNanosecondsValue(-9223372036854775807n).toString(),
+    ).toStrictEqual('-infinity');
   });
 
   suite('toSql', () => {

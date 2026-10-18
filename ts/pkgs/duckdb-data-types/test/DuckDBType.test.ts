@@ -27,10 +27,12 @@ import {
   DuckDBSmallIntType,
   DuckDBSQLNullType,
   DuckDBStringLiteralType,
+  DuckDBTimeNanosecondsType,
   DuckDBTimestampMillisecondsType,
   DuckDBTimestampNanosecondsType,
   DuckDBTimestampSecondsType,
   DuckDBTimestampType,
+  DuckDBTimestampTZNanosecondsType,
   DuckDBTimestampTZType,
   DuckDBTimeType,
   DuckDBTimeTZType,
@@ -55,11 +57,13 @@ import {
   STRING_LITERAL,
   STRUCT,
   TIME,
+  TIME_NS,
   TIMESTAMP,
   TIMESTAMP_MS,
   TIMESTAMP_NS,
   TIMESTAMP_S,
   TIMESTAMPTZ,
+  TIMESTAMPTZ_NS,
   TIMETZ,
   TINYINT,
   UBIGINT,
@@ -1020,6 +1024,39 @@ suite('DuckDBIntegerLiteralType', () => {
     ).toStrictEqual({
       typeId: DuckDBTypeId.INTEGER_LITERAL,
       alias: 'myintegerliteral',
+    });
+  });
+});
+
+suite('DuckDBTimeNanosecondsType', () => {
+  test('toString', () => {
+    expect(TIME_NS.toString()).toBe('TIME_NS');
+  });
+  test('toString with alias', () => {
+    expect(DuckDBTimeNanosecondsType.create('mytimens').toString()).toBe(
+      'mytimens',
+    );
+  });
+  test('toJson', () => {
+    expect(TIME_NS.toJson()).toStrictEqual({ typeId: DuckDBTypeId.TIME_NS });
+  });
+});
+
+suite('DuckDBTimestampTZNanosecondsType', () => {
+  test('toString', () => {
+    expect(TIMESTAMPTZ_NS.toString()).toBe('TIMESTAMPTZ_NS');
+  });
+  test('toString short', () => {
+    expect(TIMESTAMPTZ_NS.toString({ short: true })).toBe('TIMESTAMPTZ_NS');
+  });
+  test('toString with alias', () => {
+    expect(
+      DuckDBTimestampTZNanosecondsType.create('mytimestamptzns').toString(),
+    ).toBe('mytimestamptzns');
+  });
+  test('toJson', () => {
+    expect(TIMESTAMPTZ_NS.toJson()).toStrictEqual({
+      typeId: DuckDBTypeId.TIMESTAMP_TZ_NS,
     });
   });
 });

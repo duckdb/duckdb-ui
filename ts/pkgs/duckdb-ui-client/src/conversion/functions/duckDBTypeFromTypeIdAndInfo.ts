@@ -15,10 +15,12 @@ import {
   DuckDBSmallIntType,
   DuckDBSQLNullType,
   DuckDBStructType,
+  DuckDBTimeNanosecondsType,
   DuckDBTimestampMillisecondsType,
   DuckDBTimestampNanosecondsType,
   DuckDBTimestampSecondsType,
   DuckDBTimestampType,
+  DuckDBTimestampTZNanosecondsType,
   DuckDBTimestampTZType,
   DuckDBTimeType,
   DuckDBTimeTZType,
@@ -75,6 +77,8 @@ export function duckDBTypeFromTypeIdAndInfo(
       return DuckDBDateType.create(alias);
     case LogicalTypeId.TIME:
       return DuckDBTimeType.create(alias);
+    case LogicalTypeId.TIME_NS:
+      return DuckDBTimeNanosecondsType.create(alias);
     case LogicalTypeId.TIMESTAMP_SEC:
       return DuckDBTimestampSecondsType.create(alias);
     case LogicalTypeId.TIMESTAMP_MS:
@@ -122,6 +126,8 @@ export function duckDBTypeFromTypeIdAndInfo(
 
     case LogicalTypeId.TIMESTAMP_TZ:
       return DuckDBTimestampTZType.create(alias);
+    case LogicalTypeId.TIMESTAMP_TZ_NS:
+      return DuckDBTimestampTZNanosecondsType.create(alias);
     case LogicalTypeId.TIME_TZ:
       return DuckDBTimeTZType.create(alias);
 

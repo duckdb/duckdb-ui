@@ -129,6 +129,7 @@ export function readVector(
     case LogicalTypeId.BIGINT:
     case LogicalTypeId.DATE:
     case LogicalTypeId.TIME:
+    case LogicalTypeId.TIME_NS:
     case LogicalTypeId.TIMESTAMP_SEC:
     case LogicalTypeId.TIMESTAMP_MS:
     case LogicalTypeId.TIMESTAMP:
@@ -142,6 +143,7 @@ export function readVector(
     case LogicalTypeId.UINTEGER:
     case LogicalTypeId.UBIGINT:
     case LogicalTypeId.TIMESTAMP_TZ:
+    case LogicalTypeId.TIMESTAMP_TZ_NS:
     case LogicalTypeId.TIME_TZ:
     case LogicalTypeId.UHUGEINT:
     case LogicalTypeId.HUGEINT:

@@ -82,14 +82,14 @@ suite('DuckDBTimestampTZValue', () => {
       new DuckDBTimestampTZValue(-58261244276543211n).toDuckDBString({
         timeZone: 'America/New_York',
       }),
-    ).toStrictEqual('0123-10-10 20:06:03.456789-04:56');
+    ).toStrictEqual('0123-10-10 20:06:01.456789-04:56:02');
   });
   test('should render a large negative (BC) timestamptz value to the correct string', () => {
     expect(
       new DuckDBTimestampTZValue(-65992661876543211n).toDuckDBString({
         timeZone: 'America/New_York',
       }),
-    ).toStrictEqual('0123-10-10 (BC) 20:06:03.456789-04:56');
+    ).toStrictEqual('0123-10-10 (BC) 20:06:01.456789-04:56:02');
   });
   test('should render the max timestamptz value to the correct string', () => {
     expect(
@@ -103,7 +103,7 @@ suite('DuckDBTimestampTZValue', () => {
       new DuckDBTimestampTZValue(-9223372022400000000n).toDuckDBString({
         timeZone: 'America/New_York',
       }),
-    ).toStrictEqual('290309-12-21 (BC) 19:04:00-04:56');
+    ).toStrictEqual('290309-12-21 (BC) 19:03:58-04:56:02');
   });
   test('should render the positive infinity timestamptz value to the correct string', () => {
     expect(
