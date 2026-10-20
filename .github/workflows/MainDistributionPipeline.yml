@@ -33,6 +33,15 @@ jobs:
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
+  duckdb-v2-0-next-build:
+    name: Build UI extension for next 2.0 release (v2.0-cyanoptera)
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera
+    with:
+      ci_tools_version: v2.0-cyanoptera
+      duckdb_version: v2.0-cyanoptera
+      exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
+      extension_name: ui
+
   duckdb-next-patch-build:
     name: Build UI extension for next patch (v1.5-variegata)
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
