@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   duckdb-main-build:
-    name: Build UI extension for main branch
+    name: Build UI extension for DuckDB main
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@main
     with:
       ci_tools_version: main
@@ -34,7 +34,7 @@ jobs:
       extension_name: ui
 
   duckdb-v2-0-next-build:
-    name: Build UI extension for next 2.0 release (v2.0-cyanoptera)
+    name: Build UI extension for next 2.0 patch (v2.0-cyanoptera)
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera
     with:
       ci_tools_version: v2.0-cyanoptera
@@ -42,8 +42,30 @@ jobs:
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
-  duckdb-next-patch-build:
-    name: Build UI extension for next patch (v1.5-variegata)
+  duckdb-v2-0-build:
+    name: Build UI extension for DuckDB v2.0.0
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera
+    with:
+      ci_tools_version: v2.0-cyanoptera
+      duckdb_version: v2.0.0
+      exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
+      extension_name: ui
+
+  duckdb-v2-0-deploy:
+    if: ${{ github.repository == 'duckdb/duckdb-ui' && ( startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ) }}
+    name: Deploy UI extension for DuckDB v2.0.0
+    needs: duckdb-v2-0-build
+    uses: duckdb/extension-ci-tools/.github/workflows/_extension_deploy.yml@v2.0-cyanoptera
+    secrets: inherit
+    with:
+      extension_name: ui
+      ci_tools_version: v2.0-cyanoptera
+      duckdb_version: v2.0.0
+      exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads'
+      deploy_latest: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
+
+  duckdb-v1-5-next-build:
+    name: Build UI extension for next 1.5 patch (v1.5-variegata)
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
     with:
       ci_tools_version: v1.5-variegata
@@ -51,7 +73,7 @@ jobs:
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
-  duckdb-stable-build:
+  duckdb-v1-5-build:
     name: Build UI extension for DuckDB v1.5.6
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.5-variegata
     with:
@@ -60,10 +82,10 @@ jobs:
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
-  duckdb-stable-deploy:
+  duckdb-v1-5-deploy:
     if: ${{ github.repository == 'duckdb/duckdb-ui' && ( startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ) }}
     name: Deploy UI extension for DuckDB v1.5.6
-    needs: duckdb-stable-build
+    needs: duckdb-v1-5-build
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_deploy.yml@v1.5-variegata
     secrets: inherit
     with:
@@ -73,8 +95,8 @@ jobs:
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads'
       deploy_latest: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
 
-  duckdb-lts-next-patch-build:
-    name: Build UI extension binaries for next LTS patch (v1.4-andium)
+  duckdb-v1-4-next-build:
+    name: Build UI extension for next 1.4 patch (v1.4-andium)
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.4-andium
     with:
       ci_tools_version: v1.4-andium
@@ -83,8 +105,8 @@ jobs:
       extension_name: ui
       vcpkg_commit: '84bab45d415d22042bd0b9081aea57f362da3f35'
 
-  duckdb-lts-build:
-    name: Build UI extension for DuckDB v1.4.5 (LTS)
+  duckdb-v1-4-build:
+    name: Build UI extension for DuckDB v1.4.5
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v1.4-andium
     with:
       ci_tools_version: v1.4-andium
@@ -93,10 +115,10 @@ jobs:
       extension_name: ui
       vcpkg_commit: '84bab45d415d22042bd0b9081aea57f362da3f35'
 
-  duckdb-lts-deploy:
+  duckdb-v1-4-deploy:
     if: ${{ github.repository == 'duckdb/duckdb-ui' && ( startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ) }}
-    name: Deploy UI extension for DuckDB v1.4.5 (LTS)
-    needs: duckdb-lts-build
+    name: Deploy UI extension for DuckDB v1.4.5
+    needs: duckdb-v1-4-build
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_deploy.yml@v1.4-andium
     secrets: inherit
     with:
