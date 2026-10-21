@@ -4,6 +4,7 @@
 #ifndef DUCKDB_CPP_EXTENSION_ENTRY
 #include <duckdb/main/extension_util.hpp>
 #endif
+#include <duckdb/main/settings.hpp>
 #include <type_traits>
 
 // DuckDB's `main` branch (post-1.5) replaced std::string with a dedicated,
@@ -56,6 +57,23 @@ typedef vector<Identifier> bind_names_t;
 #else
 typedef vector<std::string> bind_names_t;
 #endif
+
+inline bool ExternalAccessEnabled(DatabaseInstance &db) {
+#if DUCKDB_VERSION_AT_LEAST(1, 5, 0)
+  return Settings::Get<EnableExternalAccessSetting>(db);
+#else
+  return DBConfig::GetConfig(db).options.enable_external_access;
+#endif
+}
+
+// Starting the UI spawns a process, listens on a socket and makes outbound HTTP
+// requests, so it must respect enable_external_access = false.
+inline void CheckExternalAccessEnabled(ClientContext &context) {
+  if (!ExternalAccessEnabled(*context.db)) {
+    throw PermissionException(
+        "Starting the UI is disabled when enable_external_access is false");
+  }
+}
 
 typedef std::string (*simple_tf_t)(ClientContext &);
 

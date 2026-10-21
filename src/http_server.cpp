@@ -93,6 +93,8 @@ void HttpServer::StopInstance() {
 }
 
 const HttpServer &HttpServer::Start(ClientContext &context, bool *was_started) {
+  CheckExternalAccessEnabled(context);
+
   if (Started()) {
     if (was_started) {
       *was_started = true;
