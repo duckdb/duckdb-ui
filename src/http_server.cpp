@@ -17,6 +17,7 @@
 #include <duckdb/main/settings.hpp>
 #endif
 #include <duckdb/catalog/catalog.hpp>
+#include <duckdb/common/exception/catalog_exception.hpp>
 #include <duckdb/common/http_util.hpp>
 #include <duckdb/common/serializer/binary_serializer.hpp>
 #include <duckdb/common/serializer/memory_stream.hpp>
@@ -483,14 +484,24 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
 
   // Set current database & schema
   if (!database_name_option.empty() || !schema_name_option.empty()) {
-    // It's fine if the database name is empty, but we need a valid schema name.
-    auto schema_name =
-        schema_name_option.empty() ? DEFAULT_SCHEMA : schema_name_option;
     context.RunFunctionInTransaction([&] {
+      auto database = AsCatalogIdentifier(database_name_option);
+      auto schema = AsCatalogIdentifier(schema_name_option);
+      if (schema.empty()) {
+        auto &catalog = Catalog::GetCatalog(context, database);
+#if DUCKDB_VERSION_AT_LEAST(2, 0, 0)
+        auto default_schema = catalog.GetDefaultSchema();
+        if (!default_schema) {
+          throw CatalogException("Database \"%s\" has no default schema",
+                                 database_name_option);
+        }
+        schema = *default_schema;
+#else
+        schema = catalog.GetDefaultSchema();
+#endif
+      }
       duckdb::ClientData::Get(context).catalog_search_path->Set(
-          {AsCatalogIdentifier(database_name_option),
-           AsCatalogIdentifier(schema_name)},
-          duckdb::CatalogSetPathType::SET_SCHEMA);
+          {database, schema}, duckdb::CatalogSetPathType::SET_SCHEMA);
     });
   }
 
