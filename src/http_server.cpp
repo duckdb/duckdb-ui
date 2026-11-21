@@ -581,6 +581,10 @@ void HttpServer::DoHandleRun(const httplib::Request &req,
 #if DUCKDB_MAJOR_VERSION == 1 && DUCKDB_MINOR_VERSION < 5
       MetaTransaction::Get(*appender_context)
           .ModifyDatabase(catalog.GetAttached());
+#elif DUCKDB_VERSION_AT_LEAST(2, 1, 0)
+      MetaTransaction::Get(*appender_context)
+          .ModifyDatabase(*appender_context, catalog.GetAttached(),
+                          DatabaseModificationType::CREATE_CATALOG_ENTRY);
 #else
       MetaTransaction::Get(*appender_context)
           .ModifyDatabase(catalog.GetAttached(),

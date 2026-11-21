@@ -30,7 +30,13 @@ jobs:
     with:
       ci_tools_version: main
       duckdb_version: main
-      exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
+      # TEMPORARY: windows_amd64 is excluded because DuckDB main does not compile with MSVC.
+      # third_party/skiplist/Node.h does `#define nullptr NULL` when __cplusplus < 201103L,
+      # which is always true on MSVC without /Zc:__cplusplus. In the holistic unity build,
+      # quantile.cpp pulls that header in ahead of mode.cpp, so mode.cpp's
+      # `allocator.Make<string_t>(nullptr, 0)` becomes `(0, 0)` and fails with C2665.
+      # Put windows_amd64 back once DuckDB main changes Node.h or that call in mode.cpp.
+      exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'windows_amd64;wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
   duckdb-v2-0-next-build:
@@ -43,24 +49,24 @@ jobs:
       extension_name: ui
 
   duckdb-v2-0-build:
-    name: Build UI extension for DuckDB v2.0.0
+    name: Build UI extension for DuckDB v2.0.1
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_distribution.yml@v2.0-cyanoptera
     with:
       ci_tools_version: v2.0-cyanoptera
-      duckdb_version: v2.0.0
+      duckdb_version: v2.0.1
       exclude_archs: ${{ github.repository == 'duckdb/duckdb-ui' && 'wasm_mvp;wasm_eh;wasm_threads' || 'linux_arm64;linux_amd64_musl;osx_amd64;windows_amd64_mingw;wasm_mvp;wasm_eh;wasm_threads' }}
       extension_name: ui
 
   duckdb-v2-0-deploy:
     if: ${{ github.repository == 'duckdb/duckdb-ui' && ( startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' ) }}
-    name: Deploy UI extension for DuckDB v2.0.0
+    name: Deploy UI extension for DuckDB v2.0.1
     needs: duckdb-v2-0-build
     uses: duckdb/extension-ci-tools/.github/workflows/_extension_deploy.yml@v2.0-cyanoptera
     secrets: inherit
     with:
       extension_name: ui
       ci_tools_version: v2.0-cyanoptera
-      duckdb_version: v2.0.0
+      duckdb_version: v2.0.1
       exclude_archs: 'wasm_mvp;wasm_eh;wasm_threads'
       deploy_latest: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
 
