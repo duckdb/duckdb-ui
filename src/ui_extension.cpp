@@ -23,6 +23,7 @@
 namespace duckdb {
 
 std::string StartUIFunction(ClientContext &context) {
+  CheckExternalAccessEnabled(context);
   if (!ui::HttpServer::Started() &&
       ui::HttpServer::IsRunningOnMachine(context)) {
     return "UI already running in a different DuckDB instance";
@@ -39,6 +40,7 @@ std::string StartUIFunction(ClientContext &context) {
 }
 
 std::string StartUIServerFunction(ClientContext &context) {
+  CheckExternalAccessEnabled(context);
   if (!ui::HttpServer::Started() &&
       ui::HttpServer::IsRunningOnMachine(context)) {
     return "UI already running in a different DuckDB instance";
@@ -102,9 +104,13 @@ static void LoadInternal(DatabaseInstance &instance) {
   // a new database)
   ui::HttpServer::UpdateDatabaseInstanceIfRunning(instance.shared_from_this());
 
-  auto &fs = FileSystem::GetFileSystem(instance);
-  fs.CreateDirectory(fs.ExpandPath("~/.duckdb/extension_data"));
-  fs.CreateDirectory(fs.ExpandPath("~/.duckdb/extension_data/ui"));
+  // The data directory is only needed once the UI is started, which requires
+  // external access.
+  if (ExternalAccessEnabled(instance)) {
+    auto &fs = FileSystem::GetFileSystem(instance);
+    fs.CreateDirectory(fs.ExpandPath("~/.duckdb/extension_data"));
+    fs.CreateDirectory(fs.ExpandPath("~/.duckdb/extension_data/ui"));
+  }
 
   auto &config = DBConfig::GetConfig(instance);
   {

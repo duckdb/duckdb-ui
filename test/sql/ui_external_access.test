@@ -1,0 +1,23 @@
+# name: test/sql/ui_external_access.test
+# description: UI cannot be started when external access is disabled
+# group: [sql]
+
+require ui
+
+statement ok
+SET enable_external_access=false;
+
+statement error
+CALL start_ui();
+----
+Permission Error: Starting the UI is disabled when enable_external_access is false
+
+statement error
+CALL start_ui_server();
+----
+Permission Error: Starting the UI is disabled when enable_external_access is false
+
+query I
+SELECT * FROM ui_is_started();
+----
+false
